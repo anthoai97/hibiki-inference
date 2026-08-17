@@ -11,7 +11,6 @@ it can report how far ahead of real time the run stayed.
 from __future__ import annotations
 
 import argparse
-import sys
 import time
 from pathlib import Path
 
@@ -20,7 +19,7 @@ import numpy as np
 
 from .audio import SAMPLE_RATE, read_pcm, write_wav
 from .download import DEFAULT_ARTIFACT_DIRECTORY
-from .inference import load_model, start
+from .inference import load_model
 from .session import DEFAULT_CONDITION, InferenceSession, StepResult
 from .sampling import Sampler
 
@@ -29,13 +28,8 @@ DEFAULT_SEED = 299792458
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hibiki_mlx", description=__doc__)
-    parser.add_argument("infile", nargs="?", help="French audio to translate")
+    parser.add_argument("infile", help="French audio to translate")
     parser.add_argument("outfile", nargs="?", help="where to write the English audio")
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="report what the bundle contains and exit without loading it",
-    )
     parser.add_argument(
         "--artifacts",
         type=Path,
@@ -61,13 +55,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = build_parser().parse_args(argv)
-
-    if arguments.check or arguments.infile is None:
-        for check in start(artifact_directory=arguments.artifacts):
-            print(check.summary())
-        if arguments.infile is None and not arguments.check:
-            print("\nPass an input audio file to translate it.", file=sys.stderr)
-        return 0
 
     mx.random.seed(arguments.seed)
 

@@ -19,10 +19,12 @@ download_model()
 
 ```shell
 conda run -n hibiki python -m hibiki_mlx french.wav english.wav   # translate a file
+conda run -n hibiki python -m hibiki_mlx --play french.wav        # play as it translates
 ```
 
-The command prints the English text and writes the translated audio. Input is
-decoded and resampled as needed.
+The command prints English text as it is decoded and writes the translated
+audio. Pass `--play` to stream decoded English audio to the default sound
+device. Input is decoded and resampled as needed.
 
 ## Tests
 

@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 import wave
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 
-from hibiki_mlx.audio import SAMPLE_RATE, read_pcm, write_wav
+from hibiki_mlx.audio import SAMPLE_RATE, PlaybackStream, read_pcm, write_wav
 from hibiki_mlx.audio import _read_wav_24k_mono as read_wav_24k_mono
 
 
@@ -77,3 +80,42 @@ class WavRateTests(unittest.TestCase):
                 handle.writeframes(np.repeat(samples, 2).tobytes())
 
             self.assertIsNone(read_wav_24k_mono(path))
+
+
+class FakeOutputStream:
+    instances: list["FakeOutputStream"] = []
+
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.writes: list[np.ndarray] = []
+        self.instances.append(self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def write(self, pcm: np.ndarray) -> None:
+        self.writes.append(pcm.copy())
+
+
+class PlaybackStreamTests(unittest.TestCase):
+    def test_plays_float_pcm_at_the_model_rate(self) -> None:
+        FakeOutputStream.instances.clear()
+        sounddevice = SimpleNamespace(OutputStream=FakeOutputStream)
+        with patch.dict(sys.modules, {"sounddevice": sounddevice}):
+            playback = PlaybackStream()
+            playback.play(np.array([0.25, -0.5], dtype=np.float32))
+            playback.close()
+
+        self.assertEqual(len(FakeOutputStream.instances), 1)
+        output = FakeOutputStream.instances[0]
+        self.assertEqual(
+            output.kwargs,
+            {"samplerate": SAMPLE_RATE, "channels": 1, "dtype": "float32"},
+        )
+        np.testing.assert_array_equal(
+            output.writes,
+            [np.array([[0.25], [-0.5]], dtype=np.float32)],
+        )

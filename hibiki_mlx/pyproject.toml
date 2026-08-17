@@ -12,6 +12,7 @@ dependencies = [
     "mlx>=0.26,<0.27",
     "numpy>=2.0",
     "sentencepiece>=0.2",
+    "sounddevice>=0.5,<1.0",
     "sphn>=0.1",
 ]
 

@@ -13,12 +13,13 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import mlx.core as mx
 import numpy as np
 
-from .audio import SAMPLE_RATE, read_pcm, write_wav
+from .audio import SAMPLE_RATE, PlaybackStream, read_pcm, write_wav
 from .download import DEFAULT_ARTIFACT_DIRECTORY
 from .inference import load_model
 from .session import DEFAULT_CONDITION, InferenceSession, StepResult
@@ -51,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="skip the warmup frame, leaving cold compilation in the first steps",
     )
+    parser.add_argument(
+        "--play",
+        action="store_true",
+        help="play decoded English audio as it becomes available",
+    )
     return parser
 
 
@@ -77,10 +83,26 @@ def main(argv: list[str] | None = None) -> int:
     frames = len(pcm) // session.frame_size
     _log(f"{len(pcm) / SAMPLE_RATE:.1f}s of audio, {frames} frames to translate")
 
+    playback = None
+    if arguments.play:
+        _log("starting English audio playback")
+        playback = PlaybackStream()
+
     started = time.time()
-    results = session.push_pcm(pcm)
-    _echo(results)
-    results += _echo(session.finish())
+    try:
+        results = []
+        for result in _stream_pcm(session, pcm):
+            _echo([result])
+            if playback is not None and result.pcm is not None:
+                playback.play(result.pcm)
+            results.append(result)
+    except BaseException:
+        if playback is not None:
+            playback.abort()
+        raise
+    else:
+        if playback is not None:
+            playback.close()
     elapsed = time.time() - started
     print()
 
@@ -99,6 +121,13 @@ def main(argv: list[str] | None = None) -> int:
         _log(f"writing {len(out_pcm)} frames to {arguments.outfile}")
         write_wav(arguments.outfile, np.concatenate(out_pcm))
     return 0
+
+
+def _stream_pcm(session: InferenceSession, pcm: np.ndarray) -> Iterator[StepResult]:
+    """Yield each result as soon as one source frame has been translated."""
+    for start in range(0, len(pcm), session.frame_size):
+        yield from session.push_pcm(pcm[start : start + session.frame_size])
+    yield from session.finish()
 
 
 def _echo(results: list[StepResult]) -> list[StepResult]:

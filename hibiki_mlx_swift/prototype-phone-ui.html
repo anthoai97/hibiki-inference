@@ -1,0 +1,1300 @@
+<!doctype html>
+<!--
+  PROTOTYPE — THROWAWAY. Not production, not tested, do not ship.
+
+  Question: what should the phone demo screen for a Hibiki inference run look like,
+  in BOTH input modes — pick a checked-in WAV, or listen to the microphone?
+  Four variants x two modes on one page, via ?variant= and ?mode=, plus the
+  floating bar. Throwaway page because hibiki_mlx_swift has no page to embed in yet.
+
+  Real data:
+    * Every number in FILE mode is verbatim from the handed-over run of
+      assets/long-form/2.wav through artifacts/hibiki-1b-mlx-bf16.
+    * Both waveforms are the true per-80ms RMS envelope of 2.wav and output.wav.
+    * The file picker lists all ten checked-in assets with their real duration,
+      frame count and sample rate (the short-form set is 48 kHz and gets resampled).
+    * LIVE mode drives the level meter from your actual microphone when you grant
+      it, and falls back to replaying 2.wav's envelope when you do not.
+
+  Deliberately visible gaps, not papered over:
+    * There is no French transcript anywhere. Hibiki is speech-to-speech and never
+      emits source text, so every source lane is level only.
+    * Word timing is APPROXIMATE — the run printed the decoded English as one
+      undelimited stream, so words are spread across the frames where the generated
+      audio is voiced. Frame, step and timing counts are exact.
+    * Per-step phase timings and memory are blank: that run had no --metrics.
+    * LIVE mode does not exist in the CLI yet. session.push_pcm already buffers
+      arbitrary-length chunks into 80 ms frames, so the model side is ready and only
+      capture is missing — but every live-mode log line here is PROPOSED COPY, not
+      output anyone has seen. Live throughput reuses the file run's 22.4 steps/s.
+    * Only 2.wav has a baked run, so the other nine rows in the picker are inert.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hibiki phone UI — prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #17171a;
+    background-image: radial-gradient(120% 80% at 50% 0%, #2a2a31 0%, #14141a 60%, #0e0e12 100%);
+    font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #eee;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 132px;
+    overflow-x: hidden;
+  }
+  .stage-note {
+    max-width: 500px; text-align: center; font-size: 12.5px; line-height: 1.55;
+    color: #8b8b96; letter-spacing: .01em; margin: 0 0 20px;
+  }
+  .stage-note b { color: #c9c9d4; font-weight: 600; }
+  .stage-note kbd {
+    font: 600 11px/1 ui-monospace, Menlo, monospace; background: #26262e; color: #c9c9d4;
+    padding: 2px 5px; border-radius: 4px;
+  }
+
+  /* ---------- shared: the device shell (the only chrome all variants share) ---------- */
+  .fit { display: flex; justify-content: center; }
+  .device {
+    position: relative; width: 393px; height: 852px; flex: none;
+    transform-origin: top center;
+    border-radius: 54px; padding: 11px;
+    background: linear-gradient(160deg, #4c4c56, #22222a 40%, #3a3a44);
+    box-shadow: 0 40px 90px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.07);
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    border-radius: 44px; background: #000;
+    display: flex; flex-direction: column;
+  }
+  .island {
+    position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+    width: 116px; height: 33px; border-radius: 20px; background: #000; z-index: 40;
+    pointer-events: none;
+  }
+  .statusbar {
+    flex: none; height: 54px; display: flex; align-items: center;
+    justify-content: space-between; padding: 14px 28px 0;
+    font-size: 13.5px; font-weight: 600; letter-spacing: .02em; z-index: 30;
+    color: var(--status, #fff);
+  }
+  .statusbar .glyphs { display: flex; gap: 5px; align-items: center; opacity: .9; }
+  .statusbar .bar { width: 3px; border-radius: 1px; background: currentColor; }
+  .view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; }
+
+  /* shared sheet mechanics — each variant styles its own contents */
+  .sheet-wrap {
+    position: absolute; inset: 0; z-index: 25; display: none;
+    align-items: flex-end; background: rgba(0,0,0,.5);
+  }
+  .sheet-wrap.open { display: flex; }
+  .sheet { width: 100%; max-height: 88%; overflow-y: auto; }
+
+  /* ---------- shared: prototype switcher (deliberately ugly, not part of any design) ---------- */
+  .switcher {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 999; display: flex; align-items: stretch; gap: 2px; flex-wrap: nowrap;
+    background: #f4f4f6; color: #101014; border-radius: 999px; padding: 5px;
+    box-shadow: 0 12px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.35);
+    font: 600 12.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .switcher button {
+    font: inherit; border: 0; background: transparent; color: inherit;
+    padding: 9px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  }
+  .switcher button:hover { background: #dfdfe4; }
+  .switcher button.on { background: #101014; color: #fff; }
+  .switcher .label {
+    display: flex; align-items: center; padding: 0 12px; white-space: nowrap;
+    min-width: 176px; justify-content: center; letter-spacing: .02em;
+  }
+  .switcher .sep { width: 1px; background: #d4d4da; margin: 6px 3px; }
+
+  /* ==================== A — Interpreter ====================
+     Messaging metaphor. Mode is a segmented control at the top; the one big
+     button below is the whole interaction in both modes.                     */
+  .v-a { --status: #fff; background: #0b0b0f; color: #f5f5f7; }
+  .v-a .a-top { flex: none; padding: 4px 22px 10px; }
+  .v-a .a-pair {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 15px; font-weight: 650; letter-spacing: -.01em;
+  }
+  .v-a .a-pair .arrow { color: #f0a33c; font-size: 13px; }
+  .v-a .a-sub { margin-top: 2px; font-size: 11.5px; color: #6f6f7d; }
+  .v-a .a-seg {
+    flex: none; margin: 0 22px 12px; display: grid; grid-template-columns: 1fr 1fr;
+    gap: 3px; padding: 3px; background: #14141a; border: 1px solid #21212b; border-radius: 12px;
+  }
+  .v-a .a-seg button {
+    border: 0; background: transparent; color: #7c7c8a; cursor: pointer;
+    padding: 9px 0; border-radius: 9px; font: 600 13px/1 inherit; letter-spacing: -.01em;
+  }
+  .v-a .a-seg button.on { background: #26262f; color: #f5f5f7; }
+  .v-a .a-file {
+    flex: none; margin: 0 22px 10px; padding: 11px 14px; border-radius: 14px;
+    background: #14141a; border: 1px solid #21212b; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .v-a .a-file .n { font-size: 14px; font-weight: 600; }
+  .v-a .a-file .d { font-size: 11.5px; color: #6f6f7d; margin-top: 1px; }
+  .v-a .a-file .chev { color: #6f6f7d; font-size: 13px; }
+  .v-a .a-src {
+    flex: none; margin: 0 22px; padding: 11px 14px; border-radius: 16px;
+    background: #14141a; border: 1px solid #21212b;
+  }
+  .v-a .a-src.hot { border-color: #4a3a1a; }
+  .v-a .a-src-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .09em; color: #6f6f7d;
+  }
+  .v-a .a-src-head .clock {
+    text-transform: none; letter-spacing: .03em; font-variant-numeric: tabular-nums;
+  }
+  .v-a .a-src-head .rec { display: flex; align-items: center; gap: 6px; color: #e8604c; }
+  .v-a .a-src-head .rec i {
+    width: 7px; height: 7px; border-radius: 50%; background: #e8604c;
+    animation: recblink 1.4s ease-in-out infinite;
+  }
+  @keyframes recblink { 50% { opacity: .25; } }
+  .v-a .a-meter { display: flex; align-items: flex-end; gap: 2.5px; height: 26px; margin-top: 9px; }
+  .v-a .a-meter i {
+    flex: 1; min-height: 2px; border-radius: 2px; background: #33333f;
+    transition: height .07s linear, background .12s linear;
+  }
+  .v-a .a-src-note { margin-top: 8px; font-size: 11px; line-height: 1.45; color: #55555f; }
+  .v-a .a-scroll {
+    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    padding: 16px 22px 6px; display: flex; flex-direction: column; justify-content: flex-end; gap: 9px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 62px);
+    mask-image: linear-gradient(to bottom, transparent, #000 62px);
+  }
+  .v-a .a-bubble {
+    align-self: flex-start; max-width: 96%;
+    background: #17171f; border: 1px solid #23232e; border-radius: 18px 18px 18px 6px;
+    padding: 11px 15px; font-size: 16.5px; line-height: 1.42; letter-spacing: -.012em;
+    color: #4f4f5c;
+  }
+  .v-a .a-bubble.live { color: #f5f5f7; background: #1e1a13; border-color: #4a3a1a; }
+  .v-a .a-bubble.done { color: #9a9aa8; }
+  .v-a .a-caret {
+    display: inline-block; width: 2px; height: 1.05em; margin-left: 2px;
+    background: #f0a33c; vertical-align: -.16em; animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .v-a .a-foot { flex: none; padding: 6px 22px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .v-a .a-chip {
+    display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+    background: #14141a; border: 1px solid #21212b; font-size: 12.5px; color: #a6a6b4; cursor: pointer;
+  }
+  .v-a .a-chip b { color: #f0a33c; font-weight: 700; }
+  .v-a .a-chip.warn b { color: #e8604c; }
+  .v-a .a-drawer {
+    width: 100%; display: none; grid-template-columns: 1fr 1fr; gap: 1px;
+    background: #21212b; border: 1px solid #21212b; border-radius: 14px; overflow: hidden;
+  }
+  .v-a .a-drawer.open { display: grid; }
+  .v-a .a-cell { background: #14141a; padding: 9px 12px; }
+  .v-a .a-cell span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #62626e; }
+  .v-a .a-cell strong { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .v-a .a-btn {
+    position: relative; width: 82px; height: 82px; border: 0; padding: 0; border-radius: 50%;
+    background: #f0a33c; cursor: pointer; display: grid; place-items: center;
+  }
+  .v-a .a-btn.rec { background: #e8604c; }
+  .v-a .a-btn.playing { background: #1c1c24; box-shadow: 0 0 0 8px rgba(240,163,60,.09); }
+  .v-a .a-btn.playing.rec { box-shadow: 0 0 0 8px rgba(232,96,76,.12); }
+  /* direct child only — the icon is a nested svg and must not be positioned */
+  .v-a .a-btn > svg { position: absolute; inset: -8px; width: 98px; height: 98px; transform: rotate(-90deg); }
+  .v-a .a-btn .ring { fill: none; stroke: #f0a33c; stroke-width: 3; stroke-linecap: round; }
+  .v-a .a-btn.rec .ring { stroke: #e8604c; }
+  .v-a .a-btn .icon { position: relative; color: #0b0b0f; }
+  .v-a .a-btn.playing .icon { color: #f0a33c; }
+  .v-a .a-btn.playing.rec .icon { color: #e8604c; }
+  /* A's picker: a rounded bottom sheet */
+  .v-a .sheet {
+    background: #14141a; border-top: 1px solid #2a2a35; border-radius: 22px 22px 0 0; padding: 8px 0 22px;
+  }
+  .v-a .sh-grab { width: 36px; height: 4px; border-radius: 2px; background: #33333f; margin: 6px auto 12px; }
+  .v-a .sh-title { padding: 0 22px 4px; font-size: 16px; font-weight: 650; }
+  .v-a .sh-note { padding: 0 22px 12px; font-size: 11.5px; color: #55555f; line-height: 1.45; }
+  .v-a .sh-group {
+    padding: 12px 22px 6px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .09em; color: #62626e;
+  }
+  .v-a .sh-row {
+    display: flex; align-items: center; gap: 12px; padding: 11px 22px; cursor: pointer;
+  }
+  .v-a .sh-row.off { opacity: .34; cursor: not-allowed; }
+  .v-a .sh-row.sel { background: #1e1a13; }
+  .v-a .sh-row .n { flex: 1; font-size: 14.5px; }
+  .v-a .sh-row .m { font-size: 11.5px; color: #6f6f7d; font-variant-numeric: tabular-nums; }
+  .v-a .sh-row .tick { color: #f0a33c; width: 14px; }
+
+  /* ==================== B — Dual timeline ====================
+     Two lanes on one clock. FILE mode is a determinate, scrubbable timeline.
+     LIVE mode cannot show the future, so the lanes become a rolling window.  */
+  .v-b { --status: #14141a; background: #f7f6f3; color: #14141a; }
+  .v-b .b-head { flex: none; padding: 2px 20px 8px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .v-b .b-title { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8a8578; }
+  .v-b .b-file { font-size: 16.5px; font-weight: 650; letter-spacing: -.02em; margin-top: 1px; cursor: pointer; }
+  .v-b .b-file .chev { color: #b3ac9c; font-size: 12px; margin-left: 3px; }
+  .v-b .b-tabs { display: flex; gap: 0; border: 1px solid #ddd8cb; border-radius: 8px; overflow: hidden; }
+  .v-b .b-tabs button {
+    border: 0; background: #efeade; color: #8a8578; cursor: pointer;
+    padding: 7px 11px; font: 700 10.5px/1 inherit; letter-spacing: .07em; text-transform: uppercase;
+  }
+  .v-b .b-tabs button.on { background: #14141a; color: #f7f6f3; }
+  .v-b .b-kpis { flex: none; display: flex; margin: 2px 20px 12px; border-top: 1px solid #e2ded4; border-bottom: 1px solid #e2ded4; }
+  .v-b .b-kpi { flex: 1; padding: 9px 0; }
+  .v-b .b-kpi + .b-kpi { border-left: 1px solid #e2ded4; padding-left: 12px; }
+  .v-b .b-kpi span { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; color: #9a9486; }
+  .v-b .b-kpi strong { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+  .v-b .b-kpi strong i { font-size: 11px; font-style: normal; font-weight: 600; color: #9a9486; margin-left: 1px; }
+  .v-b .b-kpi.ok strong { color: #2f7d68; }
+  .v-b .b-lanes { flex: none; padding: 0 20px; }
+  .v-b .b-lane-label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: #8a8578; margin-bottom: 4px;
+  }
+  .v-b .b-lane-label em { font-style: normal; text-transform: none; letter-spacing: 0; color: #b3ac9c; font-size: 10.5px; }
+  .v-b canvas { display: block; width: 100%; }
+  .v-b .b-gap {
+    margin: 10px 20px 0; padding: 9px 12px; border-radius: 10px;
+    background: #efeade; border-left: 3px solid #c8632f; font-size: 11.5px; line-height: 1.45; color: #5c554a;
+  }
+  .v-b .b-gap b { color: #c8632f; font-variant-numeric: tabular-nums; }
+  .v-b .b-ribbon {
+    position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; margin: 12px 20px 0;
+    font-size: 16px; line-height: 1.5; letter-spacing: -.01em; color: #d6d0c2;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20px, #000 78%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 20px, #000 78%, transparent);
+  }
+  .v-b .b-ribbon .w { transition: color .2s; }
+  .v-b .b-ribbon .w.past { color: #6b6558; }
+  /* a live session cannot show words that have not been decoded yet */
+  .v-b .b-ribbon .w.future { display: none; }
+  .v-b .b-ribbon .w.now { color: #14141a; font-weight: 650; background: #f5e2b8; border-radius: 3px; }
+  .v-b .b-scrub { flex: none; padding: 12px 20px 24px; }
+  .v-b .b-track {
+    position: relative; height: 32px; border-radius: 10px; background: #eae5d9;
+    cursor: pointer; overflow: hidden; touch-action: none;
+  }
+  .v-b .b-track.live { cursor: default; background: #efeade; }
+  .v-b .b-fill { position: absolute; inset: 0 auto 0 0; background: #14141a; }
+  .v-b .b-knob { position: absolute; top: 0; bottom: 0; width: 3px; background: #c8632f; }
+  /* LIVE mode replaces the scrubber with a keeping-up gauge */
+  .v-b .b-gauge { position: absolute; inset: 0; padding: 0; }
+  .v-b .b-gauge .bar { position: absolute; inset: 0 auto 0 0; background: #2f7d68; }
+  .v-b .b-gauge .thresh { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #c8632f; }
+  .v-b .b-gauge .txt {
+    position: absolute; inset: 0; display: flex; align-items: center; padding: 0 10px;
+    justify-content: space-between;
+    font: 700 10.5px/1 ui-monospace, Menlo, monospace; letter-spacing: .05em;
+  }
+  .v-b .b-gauge .txt span:first-child { color: #f7f6f3; }
+  .v-b .b-gauge .txt span:last-child { color: #8a8578; }
+  .v-b .b-scrub-meta {
+    display: flex; justify-content: space-between; margin-top: 6px;
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: #8a8578;
+    font-variant-numeric: tabular-nums;
+  }
+  .v-b .b-live-cta { flex: none; padding: 12px 20px 24px; }
+  .v-b .b-live-cta button {
+    width: 100%; padding: 15px; border-radius: 12px; border: 0; cursor: pointer;
+    background: #14141a; color: #f7f6f3; font: 650 14px/1 inherit; letter-spacing: -.01em;
+  }
+  .v-b .b-live-cta button.on { background: #c8632f; }
+  /* B's picker: a technical full-height list */
+  .v-b .sheet { background: #f7f6f3; border-radius: 16px 16px 0 0; padding: 18px 0 22px; }
+  .v-b .sh-title { padding: 0 20px 3px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8a8578; }
+  .v-b .sh-note { padding: 0 20px 10px; font-size: 11.5px; color: #9a9486; line-height: 1.45; }
+  .v-b .sh-head, .v-b .sh-row {
+    display: grid; grid-template-columns: 1fr 46px 46px 52px; gap: 8px; padding: 8px 20px; align-items: center;
+  }
+  .v-b .sh-head {
+    font: 700 9.5px/1 inherit; letter-spacing: .08em; text-transform: uppercase; color: #b3ac9c;
+    border-bottom: 1px solid #e2ded4;
+  }
+  .v-b .sh-row { font-size: 13px; border-bottom: 1px solid #efeade; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .v-b .sh-row.off { color: #b3ac9c; cursor: not-allowed; }
+  .v-b .sh-row.sel { background: #f5e2b8; }
+  .v-b .sh-row .num { text-align: right; color: #6b6558; font-size: 12px; }
+  .v-b .sh-row.off .num { color: #c3bcac; }
+
+  /* ==================== C — Teleprompter ====================
+     Zero chrome once running. The idle screen is the ONLY place mode and file
+     live; after that the screen is nothing but words.                        */
+  .v-c { --status: #4a4a4a; background: #000; color: #fff; }
+  .v-c .view { cursor: pointer; }
+  .v-c .c-ring {
+    position: absolute; inset: 0; border-radius: 44px; pointer-events: none; z-index: 20;
+    box-shadow: inset 0 0 0 2px rgba(80,220,140,.5), inset 0 0 34px rgba(80,220,140,.16);
+    opacity: .2; transition: opacity .08s linear;
+  }
+  .v-c .c-ring.rec {
+    box-shadow: inset 0 0 0 2px rgba(232,96,76,.6), inset 0 0 34px rgba(232,96,76,.2);
+  }
+  .v-c .c-body {
+    flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 10px 30px 0;
+    display: flex; flex-direction: column; justify-content: center; gap: 18px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%);
+    mask-image: linear-gradient(to bottom, transparent, #000 30%);
+  }
+  .v-c .c-line {
+    font-weight: 600; letter-spacing: -.03em; line-height: 1.2;
+    transition: color .35s, font-size .35s;
+  }
+  .v-c .c-line.old { font-size: 20px; color: #3a3a3a; }
+  .v-c .c-line.prev { font-size: 25px; color: #6e6e6e; }
+  .v-c .c-line.now { font-size: 37px; color: #fff; }
+  .v-c .c-idle {
+    flex: 1; display: flex; flex-direction: column; align-items: stretch; justify-content: center;
+    gap: 10px; padding: 0 28px; cursor: default;
+  }
+  .v-c .c-idle h1 { font-size: 27px; font-weight: 650; letter-spacing: -.035em; margin: 0 0 14px; text-align: center; }
+  .v-c .c-choice {
+    display: flex; align-items: center; gap: 14px; padding: 17px 18px; border-radius: 16px;
+    border: 1px solid #1e1e1e; background: #0a0a0a; cursor: pointer;
+  }
+  .v-c .c-choice.on { border-color: #50dc8c; background: #08130c; }
+  .v-c .c-choice .ic { color: #50dc8c; }
+  .v-c .c-choice .t { flex: 1; }
+  .v-c .c-choice .t b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+  .v-c .c-choice .t span { font-size: 12.5px; color: #6e6e6e; }
+  .v-c .c-pick {
+    margin-top: 4px; text-align: center; font-size: 12.5px; color: #6e6e6e;
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  }
+  .v-c .c-hint { margin-top: 14px; text-align: center; font-size: 12.5px; color: #4a4a4a; }
+  .v-c .c-foot {
+    flex: none; padding: 16px 30px 28px; display: flex; justify-content: space-between; align-items: center;
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: #4a4a4a;
+    letter-spacing: .04em; font-variant-numeric: tabular-nums;
+  }
+  .v-c .c-foot b { color: #50dc8c; font-weight: 700; }
+  .v-c .c-foot b.rec { color: #e8604c; }
+  /* C's picker: a bare centered list, no sheet furniture */
+  .v-c .sheet-wrap { background: rgba(0,0,0,.92); align-items: center; }
+  .v-c .sheet { background: transparent; max-height: 100%; padding: 20px 0; }
+  .v-c .sh-title { padding: 0 30px 14px; font-size: 13px; color: #6e6e6e; text-align: center; }
+  .v-c .sh-row {
+    padding: 12px 30px; font-size: 18px; font-weight: 600; letter-spacing: -.02em;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px; cursor: pointer;
+  }
+  .v-c .sh-row.off { color: #333; cursor: not-allowed; }
+  .v-c .sh-row.sel { color: #50dc8c; }
+  .v-c .sh-row .m { font: 600 12px/1 ui-monospace, Menlo, monospace; color: #4a4a4a; }
+
+  /* ==================== D — Dev console ====================
+     The run log promoted to a screen. Mode is an argv flag; LIVE swaps the
+     retrospective totals for a live keeping-up gauge.                        */
+  .v-d {
+    --status: #b9c4bd; background: #0c110e; color: #d6e2d9;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .v-d .d-head { flex: none; padding: 2px 18px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .v-d .d-cmd { font-size: 11.5px; color: #6f8377; cursor: pointer; line-height: 1.4; }
+  .v-d .d-cmd b { color: #8ce8a8; font-weight: 600; }
+  .v-d .d-cmd u { color: #d6e2d9; text-decoration-color: #3d6a4c; text-underline-offset: 3px; }
+  .v-d .d-badge {
+    flex: none; font-size: 9.5px; letter-spacing: .1em; padding: 4px 8px; border-radius: 4px;
+    background: #16241b; color: #8ce8a8; border: 1px solid #24382a;
+  }
+  .v-d .d-grid {
+    flex: none; margin: 0 18px; display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: #1d2b21; border: 1px solid #1d2b21; border-radius: 8px; overflow: hidden;
+  }
+  .v-d .d-cell { background: #0f1712; padding: 8px 10px; }
+  .v-d .d-cell span { display: block; font-size: 9px; letter-spacing: .07em; color: #5d7166; text-transform: uppercase; }
+  .v-d .d-cell strong { font-size: 15.5px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .v-d .d-cell strong i { font-size: 10px; font-style: normal; color: #5d7166; margin-left: 1px; }
+  .v-d .d-cell.hi strong { color: #8ce8a8; }
+  .v-d .d-pipe { flex: none; margin: 12px 18px 0; }
+  .v-d .d-sec {
+    font-size: 9px; letter-spacing: .11em; color: #5d7166; text-transform: uppercase;
+    display: flex; justify-content: space-between; margin-bottom: 6px;
+  }
+  .v-d .d-stages { display: flex; gap: 4px; }
+  .v-d .d-stage {
+    flex: 1; padding: 6px 4px 5px; text-align: center; border-radius: 5px;
+    background: #0f1712; border: 1px solid #1d2b21; font-size: 10px; color: #6f8377;
+  }
+  .v-d .d-stage.on { background: #16241b; border-color: #3d6a4c; color: #8ce8a8; }
+  .v-d .d-stage b { display: block; font-size: 9px; color: #46564c; font-weight: 500; margin-top: 2px; }
+  .v-d .d-delay { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 10.5px; color: #6f8377; }
+  .v-d .d-delay .box {
+    padding: 4px 7px; border-radius: 4px; background: #0f1712; border: 1px solid #1d2b21;
+    font-variant-numeric: tabular-nums; color: #d6e2d9;
+  }
+  .v-d .d-margin { flex: none; margin: 12px 18px 0; }
+  .v-d .d-bar {
+    position: relative; height: 22px; border-radius: 5px; background: #0f1712;
+    border: 1px solid #1d2b21; overflow: hidden;
+  }
+  .v-d .d-bar .fill { position: absolute; inset: 0 auto 0 0; background: #1f4a2e; }
+  .v-d .d-bar .need { position: absolute; top: 0; bottom: 0; width: 2px; background: #e8c05c; }
+  .v-d .d-bar .lbl {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px; font-size: 10px; color: #d6e2d9; letter-spacing: .04em;
+  }
+  .v-d .d-term {
+    flex: 1 1 auto; min-height: 0; margin: 12px 18px 0; padding: 9px 12px;
+    background: #070b08; border: 1px solid #1d2b21; border-radius: 8px;
+    font-size: 11px; line-height: 1.55; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .v-d .d-term .ln { white-space: pre-wrap; word-break: break-word; }
+  .v-d .d-term .tag { color: #4d7a5c; }
+  .v-d .d-term .out { color: #e8f2ea; }
+  .v-d .d-term .dim { color: #4b5a51; }
+  .v-d .d-term .prop { color: #8a7a4d; }
+  .v-d .d-run { flex: none; padding: 10px 18px 24px; }
+  .v-d .d-run button {
+    width: 100%; padding: 13px; border-radius: 8px; border: 1px solid #3d6a4c;
+    background: #16241b; color: #8ce8a8; font: 600 13px/1 inherit; letter-spacing: .05em; cursor: pointer;
+  }
+  .v-d .d-run button.on { background: #241616; border-color: #6a3d3d; color: #e88c8c; }
+  /* D's picker: argv-style indexed list */
+  .v-d .sheet { background: #070b08; border-top: 1px solid #1d2b21; padding: 16px 0 22px; }
+  .v-d .sh-title { padding: 0 18px 3px; font-size: 11px; color: #8ce8a8; }
+  .v-d .sh-note { padding: 0 18px 10px; font-size: 10.5px; color: #4b5a51; line-height: 1.5; }
+  .v-d .sh-row {
+    display: grid; grid-template-columns: 26px 1fr 44px 52px; gap: 8px; align-items: center;
+    padding: 7px 18px; font-size: 11.5px; cursor: pointer; font-variant-numeric: tabular-nums;
+  }
+  .v-d .sh-row.off { color: #3f4c44; cursor: not-allowed; }
+  .v-d .sh-row.sel { background: #16241b; color: #8ce8a8; }
+  .v-d .sh-row .i { color: #4d7a5c; }
+  .v-d .sh-row.off .i { color: #34403a; }
+  .v-d .sh-row .m { text-align: right; color: #5d7166; }
+</style>
+</head>
+<body>
+
+<p class="stage-note">
+  <b>PROTOTYPE</b> — four phone screens × two input modes, driven by the real
+  <code>2.wav</code> run. <kbd>←</kbd> <kbd>→</kbd> variant · <kbd>M</kbd> mode ·
+  <kbd>space</kbd> play. Live mode uses your real mic if you allow it.
+</p>
+
+<div class="fit"><div class="device">
+  <div class="screen">
+    <div class="island"></div>
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="glyphs">
+        <i class="bar" style="height:5px"></i><i class="bar" style="height:7px"></i>
+        <i class="bar" style="height:9px"></i><i class="bar" style="height:11px"></i>
+        <svg width="25" height="12" viewBox="0 0 25 12" style="margin-left:3px" aria-hidden="true">
+          <rect x=".5" y=".5" width="21" height="11" rx="3" fill="none" stroke="currentColor" opacity=".45"/>
+          <rect x="2" y="2" width="18" height="8" rx="1.8" fill="currentColor"/>
+          <path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" opacity=".45"/>
+        </svg>
+      </span>
+    </div>
+    <div class="view" id="view"></div>
+  </div>
+</div></div>
+
+<div class="switcher">
+  <button id="prev" title="previous variant (←)">◀</button>
+  <span class="label" id="vlabel">A — Interpreter</span>
+  <button id="next" title="next variant (→)">▶</button>
+  <span class="sep"></span>
+  <span id="modes"></span>
+  <span class="sep"></span>
+  <span id="rate"></span>
+  <span class="sep"></span>
+  <button id="reset" title="back to frame 0">⟲</button>
+</div>
+
+<script>
+const RUN = {"files":[{"name":"1.wav","group":"long-form","seconds":59.3,"frames":741,"rate":24000,"baked":false},{"name":"2.wav","group":"long-form","seconds":43.7,"frames":545,"rate":24000,"baked":true},{"name":"3.wav","group":"long-form","seconds":57.1,"frames":713,"rate":24000,"baked":false},{"name":"4.wav","group":"long-form","seconds":49.2,"frames":614,"rate":24000,"baked":false},{"name":"5.wav","group":"long-form","seconds":45.7,"frames":571,"rate":24000,"baked":false},{"name":"cvss-fr2en-test-1.wav","group":"short-form","seconds":10.0,"frames":125,"rate":48000,"baked":false},{"name":"cvss-fr2en-test-2.wav","group":"short-form","seconds":10.2,"frames":128,"rate":48000,"baked":false},{"name":"cvss-fr2en-test-3.wav","group":"short-form","seconds":10.2,"frames":127,"rate":48000,"baked":false},{"name":"cvss-fr2en-test-4.wav","group":"short-form","seconds":10.2,"frames":127,"rate":48000,"baked":false},{"name":"cvss-fr2en-test-5.wav","group":"short-form","seconds":10.3,"frames":128,"rate":48000,"baked":false}],"artifacts":"artifacts/hibiki-1b-mlx-bf16","infile":"assets/long-form/2.wav","outfile":"output.wav","sourceSeconds":43.7,"sourceFrames":546,"steps":552,"writtenFrames":550,"elapsedSeconds":24.6,"stepsPerSecond":22.4,"realTimeStepsPerSecond":12.5,"secondsPerFrame":0.08,"seed":299792458,"temp":0.8,"textTopK":25,"audioTopK":250,"condition":"very_good","sourceEnvelope":[0.0,0.001,0.002,0.002,0.001,0.001,0.0,0.04,0.801,0.397,0.229,0.668,0.425,0.288,0.812,0.579,0.581,0.217,0.172,0.096,0.133,0.313,0.215,0.122,0.356,0.093,0.214,0.21,0.146,0.082,0.002,0.001,0.298,0.775,0.165,0.524,0.394,0.309,0.467,0.142,0.498,0.146,0.458,0.091,0.325,0.481,0.657,0.366,0.542,0.453,0.342,0.309,0.464,0.108,0.464,0.093,0.004,0.0,0.0,0.0,0.0,0.011,0.016,0.014,0.01,0.005,0.159,0.602,0.418,0.793,0.402,0.232,0.222,0.047,0.004,0.472,0.785,1.0,0.229,0.502,0.297,0.422,0.394,0.472,0.318,0.167,0.366,0.887,0.484,0.387,0.148,0.164,0.166,0.359,0.216,0.2,0.227,0.087,0.175,0.16,0.014,0.001,0.001,0.001,0.004,0.002,0.122,0.51,0.404,0.636,0.459,0.44,0.394,0.718,0.29,0.327,0.13,0.316,0.296,0.316,0.378,0.382,0.307,0.204,0.019,0.018,0.057,0.442,0.322,0.482,0.289,0.278,0.034,0.079,0.105,0.219,0.589,0.419,0.606,0.177,0.341,0.151,0.331,0.359,0.101,0.441,0.384,0.333,0.275,0.168,0.083,0.21,0.155,0.083,0.384,0.28,0.063,0.011,0.016,0.01,0.002,0.319,0.174,0.404,0.527,0.391,0.133,0.167,0.228,0.336,0.361,0.441,0.192,0.151,0.33,0.252,0.025,0.002,0.002,0.001,0.354,0.169,0.498,0.232,0.531,0.135,0.271,0.127,0.228,0.21,0.132,0.021,0.005,0.001,0.001,0.001,0.001,0.003,0.425,0.234,0.14,0.085,0.195,0.898,0.738,0.315,0.053,0.38,0.248,0.241,0.269,0.388,0.39,0.377,0.249,0.154,0.069,0.005,0.0,0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.011,0.002,0.002,0.002,0.001,0.001,0.462,0.171,0.715,0.962,0.929,0.588,0.157,0.324,0.193,0.595,0.476,0.122,0.509,0.12,0.235,0.243,0.365,0.162,0.017,0.01,0.002,0.131,0.934,0.311,0.67,0.519,0.701,0.338,0.263,0.144,0.203,0.172,0.285,0.621,0.134,0.5,0.489,0.308,0.135,0.163,0.19,0.241,0.062,0.011,0.009,0.002,0.437,0.351,0.432,0.371,0.206,0.115,0.271,0.292,0.388,0.975,0.536,0.368,0.49,0.333,0.226,0.462,0.205,0.093,0.333,0.146,0.233,0.386,0.298,0.301,0.17,0.027,0.196,0.335,0.223,0.228,0.241,0.318,0.136,0.167,0.506,0.241,0.122,0.425,0.379,0.256,0.178,0.231,0.244,0.193,0.346,0.077,0.201,0.072,0.012,0.002,0.001,0.004,0.007,0.004,0.036,0.301,0.072,0.484,0.511,0.442,0.616,0.235,0.225,0.736,0.499,0.513,0.265,0.035,0.052,0.209,0.018,0.396,0.055,0.239,0.257,0.309,0.027,0.188,0.135,0.121,0.115,0.291,0.327,0.032,0.202,0.309,0.028,0.015,0.02,0.002,0.292,0.083,0.274,0.158,0.463,0.723,0.415,0.232,0.463,0.348,0.139,0.333,0.458,0.363,0.091,0.006,0.001,0.016,0.549,0.586,0.281,0.462,0.215,0.305,0.315,0.223,0.008,0.007,0.003,0.001,0.115,0.274,0.808,0.546,0.702,0.542,0.374,0.385,0.234,0.176,0.013,0.01,0.005,0.004,0.718,0.239,0.448,0.529,0.265,0.185,0.348,0.137,0.293,0.148,0.664,0.189,0.331,0.268,0.266,0.218,0.634,0.346,0.317,0.304,0.325,0.293,0.511,0.253,0.205,0.282,0.269,0.019,0.023,0.019,0.003,0.15,0.34,0.314,0.16,0.876,0.507,0.372,0.046,0.431,0.269,0.363,0.353,0.102,0.075,0.092,0.128,0.192,0.089,0.1,0.232,0.372,0.176,0.032,0.001,0.001,0.004,0.367,0.124,0.475,0.208,0.312,0.3,0.037,0.033,0.368,0.143,0.257,0.097,0.512,0.594,0.229,0.237,0.391,0.389,0.235,0.267,0.142,0.313,0.144,0.151,0.211,0.437,0.34,0.102,0.002,0.107,0.327,0.201,0.278,0.381,0.407,0.069,0.036,0.132,0.016,0.016,0.001,0.007,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"targetEnvelope":[0.002,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.286,0.904,0.447,0.392,0.634,0.488,0.437,0.506,1.0,0.989,0.564,0.848,0.373,0.204,0.505,0.663,0.712,0.615,0.093,0.418,0.093,0.175,0.198,0.112,0.009,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.469,0.327,0.769,0.467,0.335,0.68,0.325,0.687,0.611,0.085,0.277,0.287,0.538,0.31,0.04,0.43,0.344,0.309,0.505,0.071,0.394,0.484,0.383,0.039,0.217,0.135,0.008,0.001,0.001,0.001,0.001,0.001,0.301,0.593,0.3,0.289,0.544,0.225,0.365,0.42,0.369,0.118,0.006,0.001,0.383,0.813,0.81,0.779,0.367,0.365,0.358,0.336,0.652,0.245,0.257,0.191,0.374,0.546,0.436,0.323,0.216,0.276,0.297,0.507,0.062,0.4,0.091,0.278,0.351,0.246,0.009,0.001,0.138,0.54,0.154,0.45,0.641,0.721,0.664,0.724,0.447,0.414,0.378,0.302,0.562,0.385,0.02,0.406,0.07,0.367,0.227,0.553,0.283,0.235,0.057,0.445,0.549,0.532,0.351,0.039,0.043,0.437,0.416,0.134,0.359,0.576,0.283,0.472,0.234,0.061,0.517,0.253,0.268,0.295,0.231,0.479,0.397,0.272,0.028,0.002,0.001,0.001,0.282,0.402,0.417,0.219,0.362,0.238,0.469,0.24,0.264,0.249,0.077,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.01,0.449,0.456,0.558,0.607,0.279,0.441,0.386,0.436,0.048,0.417,0.419,0.402,0.345,0.51,0.325,0.192,0.016,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.252,0.509,0.43,0.742,0.453,0.556,0.373,0.488,0.534,0.494,0.496,0.355,0.346,0.372,0.53,0.239,0.074,0.433,0.482,0.507,0.106,0.356,0.107,0.132,0.611,0.485,0.345,0.322,0.335,0.215,0.306,0.415,0.197,0.013,0.001,0.001,0.001,0.324,0.431,0.136,0.473,0.041,0.611,0.576,0.523,0.078,0.374,0.532,0.313,0.549,0.376,0.077,0.226,0.295,0.346,0.453,0.509,0.444,0.124,0.329,0.343,0.024,0.289,0.217,0.566,0.293,0.472,0.448,0.372,0.093,0.319,0.306,0.223,0.197,0.155,0.539,0.335,0.014,0.002,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.003,0.571,0.359,0.166,0.525,0.634,0.512,0.05,0.513,0.472,0.365,0.534,0.383,0.448,0.039,0.262,0.121,0.46,0.335,0.319,0.47,0.304,0.503,0.305,0.255,0.32,0.039,0.017,0.077,0.018,0.001,0.001,0.001,0.001,0.018,0.384,0.126,0.589,0.126,0.493,0.522,0.431,0.331,0.36,0.045,0.286,0.286,0.03,0.512,0.356,0.418,0.132,0.441,0.375,0.096,0.003,0.001,0.001,0.001,0.041,0.443,0.528,0.419,0.455,0.379,0.443,0.418,0.103,0.042,0.002,0.001,0.001,0.001,0.001,0.467,0.246,0.776,0.468,0.092,0.431,0.326,0.108,0.005,0.011,0.416,0.499,0.65,0.363,0.464,0.397,0.558,0.398,0.441,0.177,0.029,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.309,0.285,0.608,0.531,0.697,0.249,0.198,0.353,0.387,0.167,0.227,0.165,0.202,0.403,0.106,0.293,0.352,0.378,0.136,0.001,0.001,0.315,0.533,0.529,0.542,0.301,0.242,0.14,0.3,0.451,0.333,0.428,0.269,0.044,0.042,0.087,0.432,0.451,0.311,0.022,0.013,0.396,0.344,0.096,0.196,0.191,0.051,0.001,0.001,0.001,0.001,0.486,0.125,0.466,0.104,0.524,0.247,0.017,0.001,0.037,0.111,0.486,0.064,0.438,0.247,0.352,0.397,0.231,0.192],"tokens":[[56,"What"],[59,"is"],[62,"the"],[65,"Global"],[69,"Citizens"],[72,"Festival?"],[75,"Is"],[78,"there"],[91,"anything"],[94,"to"],[97,"do"],[100,"to"],[105,"reduce"],[108,"poverty?"],[111,"This"],[121,"Saturday,"],[125,"New"],[128,"York"],[133,"will"],[136,"host"],[140,"the"],[143,"Global"],[146,"Citizens"],[149,"Festival,"],[153,"an"],[156,"annual"],[161,"music"],[164,"event"],[168,"with"],[171,"impressive"],[174,"star"],[178,"list"],[182,"and"],[185,"committed"],[190,"to"],[193,"an"],[197,"equally"],[200,"impressive"],[203,"mission."],[206,"To"],[214,"end"],[217,"poverty"],[220,"in"],[239,"the"],[243,"world."],[247,"The"],[250,"Global"],[253,"Citizens"],[282,"Festival,"],[285,"now"],[288,"at"],[291,"its"],[295,"seventh"],[298,"edition,"],[301,"will"],[304,"see"],[308,"tens"],[311,"of"],[318,"thousands"],[322,"of"],[326,"people"],[329,"run"],[332,"towards"],[335,"the"],[339,"Great"],[343,"Long"],[346,"Central"],[349,"Park,"],[353,"not"],[367,"only"],[370,"to"],[374,"enjoy"],[378,"the"],[382,"appreciation"],[385,"of"],[388,"artists"],[394,"such"],[403,"as"],[406,"Janet"],[409,"Jackson,"],[415,"Cardi"],[418,"B,"],[426,"Sean"],[429,"Mendes,"],[433,"but"],[442,"also"],[445,"to"],[450,"raise"],[454,"awareness"],[457,"of"],[481,"the"],[484,"real"],[488,"purpose"],[491,"of"],[494,"the"],[497,"festival,"],[503,"namely"],[506,"to"],[509,"end"],[512,"the"],[518,"extreme"],[523,"poverty"],[526,"of"],[533,"the"],[537,"10th"],[543,"century"],[546,"30."]],"firstVoicedSource":8,"firstVoicedTarget":56,"logLines":["loading the artifact bundle from artifacts/hibiki-1b-mlx-bf16","warming up","reading assets/long-form/2.wav","43.7s of audio, 546 frames to translate","552 steps in 24.6s: 22.4 steps/s, 12.5 needed for real time","writing 550 frames to output.wav"]};
+
+/* ---------------------------------------------------------------- derived run facts */
+const FRAME_MS = RUN.secondsPerFrame * 1000;
+const HEADROOM = RUN.stepsPerSecond / RUN.realTimeStepsPerSecond;      // 1.79x
+const TAIL_STEPS = RUN.steps - RUN.sourceFrames;                       // 6, silence-tail finalization
+const ONSET_FRAMES = RUN.firstVoicedTarget - RUN.firstVoicedSource;    // 48 -> 3.84 s
+const BAKED = RUN.files.find(f => f.baked);
+
+const SENTENCES = (() => {
+  const out = [];
+  let cur = null;
+  for (const [frame, word] of RUN.tokens) {
+    if (!cur) cur = { start: frame, words: [] };
+    cur.words.push([frame, word]);
+    if (/[.?!]["')]?$/.test(word)) { cur.end = frame; out.push(cur); cur = null; }
+  }
+  if (cur) { cur.end = RUN.steps; out.push(cur); }
+  return out;
+})();
+
+const fmt1 = n => n.toFixed(1);
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+/* ---------------------------------------------------------------- real microphone
+   Live mode drives its level meter from the actual input device when permission is
+   granted, so the indeterminate UI can be judged against a real voice. Everything
+   downstream of the level (text, throughput) is still the baked 2.wav replay.      */
+const mic = {
+  level: 0, active: false, denied: false, ctx: null, stream: null, buffer: null, analyser: null,
+  async start() {
+    if (this.active || this.denied) return;
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 1024;
+      this.buffer = new Float32Array(this.analyser.fftSize);
+      this.ctx.createMediaStreamSource(this.stream).connect(this.analyser);
+      this.active = true;
+    } catch (error) {
+      this.denied = true;
+    }
+  },
+  stop() {
+    if (this.stream) this.stream.getTracks().forEach(track => track.stop());
+    if (this.ctx) this.ctx.close();
+    this.stream = this.ctx = this.analyser = null;
+    this.active = false; this.level = 0;
+  },
+  sample() {
+    if (!this.active) return;
+    this.analyser.getFloatTimeDomainData(this.buffer);
+    let sum = 0;
+    for (const v of this.buffer) sum += v * v;
+    // RMS, lifted into the same 0..1 range the baked envelopes use
+    this.level = clamp(Math.sqrt(sum / this.buffer.length) * 6, 0, 1);
+  },
+};
+
+/* ---------------------------------------------------------------- replay engine */
+const engine = {
+  frame: 0, playing: false, rate: 4, mode: 'file', file: BAKED.name, listeners: [],
+  toggle() {
+    if (this.frame >= RUN.steps) return this.seek(0, true);
+    this.playing = !this.playing;
+    if (this.playing && this.mode === 'live') mic.start();
+    if (!this.playing && this.mode === 'live') mic.stop();
+    this.emit();
+  },
+  seek(frame, play) {
+    this.frame = clamp(frame, 0, RUN.steps);
+    if (play !== undefined) this.playing = play;
+    if (!this.playing) mic.stop();
+    this.emit();
+  },
+  setMode(mode) {
+    if (mode === this.mode) return;
+    this.mode = mode; this.playing = false; this.frame = 0;
+    mic.stop();
+    remount();
+  },
+  setFile(name) { this.file = name; this.playing = false; this.frame = 0; mic.stop(); this.emit(); },
+  emit() { const s = this.state(); for (const fn of this.listeners) fn(s); },
+  state() {
+    const live = this.mode === 'live';
+    const step = Math.min(RUN.steps, Math.floor(this.frame));
+    const sourceFrame = Math.min(RUN.sourceFrames - 1, step);
+    const audioFrame = clamp(step - 2, 0, RUN.writtenFrames - 1);
+    const baked = step <= RUN.sourceFrames ? RUN.sourceEnvelope[sourceFrame] : 0;
+    return {
+      raw: this.frame, step, sourceFrame, audioFrame, live,
+      mode: this.mode, file: this.file, playing: this.playing,
+      done: step >= RUN.steps,
+      started: step > 0,
+      // no total in live mode — nothing downstream may draw a progress bar
+      total: live ? null : RUN.steps,
+      progress: live ? 0 : this.frame / RUN.steps,
+      modelTime: step * RUN.secondsPerFrame,
+      computeTime: step / RUN.stepsPerSecond,
+      micLive: live && mic.active,
+      level: live ? (mic.active ? mic.level : (this.playing ? baked : 0)) : baked,
+      tgtLevel: step > 1 ? RUN.targetEnvelope[audioFrame] : 0,
+      tokens: RUN.tokens.filter(t => t[0] <= step),
+    };
+  },
+};
+
+let last = null;
+requestAnimationFrame(function loop(now) {
+  mic.sample();
+  if (last !== null && engine.playing) {
+    engine.frame += ((now - last) / FRAME_MS) * engine.rate;
+    if (engine.frame >= RUN.steps) { engine.frame = RUN.steps; engine.playing = false; mic.stop(); }
+    engine.emit();
+  } else if (engine.mode === 'live' && mic.active) {
+    engine.emit();   // keep the level meter moving even while paused
+  }
+  last = now;
+  requestAnimationFrame(loop);
+});
+
+/* ---------------------------------------------------------------- picker helpers */
+const fileByName = name => RUN.files.find(f => f.name === name) || BAKED;
+const pickable = row => row.baked;   // only 2.wav has a baked run in this prototype
+
+function sheet(root, inner) {
+  const wrap = document.createElement('div');
+  wrap.className = 'sheet-wrap';
+  wrap.innerHTML = `<div class="sheet">${inner}</div>`;
+  wrap.addEventListener('click', event => {
+    if (event.target === wrap) wrap.classList.remove('open');
+  });
+  wrap.querySelectorAll('[data-file]').forEach(row => {
+    row.addEventListener('click', () => {
+      if (row.classList.contains('off')) return;
+      engine.setFile(row.dataset.file);
+      wrap.classList.remove('open');
+      remount();
+    });
+  });
+  root.appendChild(wrap);
+  return wrap;
+}
+
+/* ================================================================ A — Interpreter */
+function variantA(root) {
+  const chosen = fileByName(engine.file);
+  root.innerHTML = `
+    <div class="a-top">
+      <div class="a-pair">French <span class="arrow">→</span> English</div>
+      <div class="a-sub">Hibiki 1B · on device · nothing leaves the phone</div>
+    </div>
+    <div class="a-seg">
+      <button data-mode="file">Recording</button>
+      <button data-mode="live">Speak</button>
+    </div>
+    <div class="a-file" id="a-file">
+      <div>
+        <div class="n">${chosen.name}</div>
+        <div class="d">${chosen.group} · ${fmt1(chosen.seconds)}s · ${chosen.frames} frames</div>
+      </div>
+      <div class="chev">Change ›</div>
+    </div>
+    <div class="a-src" id="a-src">
+      <div class="a-src-head">
+        <span id="a-src-label">Listening</span>
+        <span class="clock" id="a-clock">0.0s</span>
+      </div>
+      <div class="a-meter" id="a-meter"></div>
+      <div class="a-src-note" id="a-src-note"></div>
+    </div>
+    <div class="a-scroll" id="a-scroll"></div>
+    <div class="a-foot">
+      <div class="a-drawer" id="a-drawer"></div>
+      <div class="a-chip" id="a-chip"></div>
+      <button class="a-btn" id="a-btn">
+        <svg viewBox="0 0 100 100"><circle class="ring" cx="50" cy="50" r="46" id="a-ring"/></svg>
+        <span class="icon" id="a-icon"></span>
+      </button>
+    </div>`;
+
+  // mode-specific chrome: the file row only exists for a recording
+  root.querySelectorAll('[data-mode]').forEach(button => {
+    button.classList.toggle('on', button.dataset.mode === engine.mode);
+    button.onclick = () => engine.setMode(button.dataset.mode);
+  });
+  const fileRow = root.querySelector('#a-file');
+  fileRow.style.display = engine.mode === 'file' ? '' : 'none';
+
+  const picker = sheet(root, `
+    <div class="sh-grab"></div>
+    <div class="sh-title">Choose a recording</div>
+    <div class="sh-note">Only ${BAKED.name} has a baked run in this prototype, so the rest are dimmed.</div>
+    ${['long-form', 'short-form'].map(group => `
+      <div class="sh-group">${group}${group === 'short-form' ? ' · 48 kHz, resampled' : ''}</div>
+      ${RUN.files.filter(f => f.group === group).map(f => `
+        <div class="sh-row ${pickable(f) ? '' : 'off'} ${f.name === engine.file ? 'sel' : ''}"
+             data-file="${f.name}">
+          <span class="tick">${f.name === engine.file ? '✓' : ''}</span>
+          <span class="n">${f.name}</span>
+          <span class="m">${fmt1(f.seconds)}s · ${f.frames}f</span>
+        </div>`).join('')}`).join('')}`);
+  fileRow.onclick = () => picker.classList.add('open');
+
+  const meter = root.querySelector('#a-meter');
+  meter.innerHTML = '<i></i>'.repeat(28);
+  const bars = [...meter.children];
+  const rolling = new Array(28).fill(0);
+
+  const scroll = root.querySelector('#a-scroll');
+  const btn = root.querySelector('#a-btn');
+  const ring = root.querySelector('#a-ring');
+  const CIRC = 2 * Math.PI * 46;
+  ring.style.strokeDasharray = CIRC;
+  btn.classList.toggle('rec', engine.mode === 'live');
+  btn.onclick = () => engine.toggle();
+
+  const drawer = root.querySelector('#a-drawer');
+  const chip = root.querySelector('#a-chip');
+  chip.onclick = () => drawer.classList.toggle('open');
+
+  let renderedWords = -1;
+  return function update(s) {
+    if (s.micLive) {
+      // a real mic has no future to draw, so the meter scrolls right-to-left
+      rolling.push(s.playing ? s.level : 0); rolling.shift();
+      bars.forEach((bar, i) => paintBar(bar, rolling[i]));
+    } else {
+      // a recording — or the no-mic fallback — can window the real envelope
+      bars.forEach((bar, i) => {
+        const frame = s.sourceFrame - (bars.length - 1 - i);
+        const v = s.started && frame >= 0 && s.step <= RUN.sourceFrames
+          ? RUN.sourceEnvelope[frame] : 0;
+        paintBar(bar, v);
+      });
+    }
+
+    root.querySelector('#a-src').classList.toggle('hot', s.live && s.playing);
+    root.querySelector('#a-src-label').innerHTML = s.live && s.playing
+      ? '<span class="rec"><i></i>Recording</span>'
+      : s.live ? 'Microphone' : 'Listening';
+    root.querySelector('#a-clock').textContent = fmt1(s.modelTime) + 's';
+    root.querySelector('#a-src-note').textContent = s.live
+      ? (s.micLive
+          ? 'Your real mic level. Speech in, speech out — no French transcript.'
+          : 'Speech in, speech out — no French transcript. Allow mic access for a live level.')
+      : 'Speech in, speech out — no French transcript is produced.';
+
+    // FILE mode has a known total, so the ring is a progress ring.
+    // LIVE mode does not, so the ring is switched off entirely.
+    ring.style.strokeDashoffset = s.live ? CIRC : CIRC * (1 - s.progress);
+    btn.classList.toggle('playing', s.playing);
+    root.querySelector('#a-icon').innerHTML = s.playing ? iconStop() : iconMic();
+
+    chip.className = 'a-chip' + (s.live ? ' warn' : '');
+    chip.innerHTML = s.live
+      ? `<b>${fmt1(RUN.stepsPerSecond)}/s</b> keeping up · needs ${fmt1(RUN.realTimeStepsPerSecond)}/s`
+      : `<b>${fmt1(HEADROOM)}×</b> faster than real time`;
+    drawer.innerHTML = s.live
+      ? cells([['Elapsed', fmt1(s.modelTime) + 's'], ['Steps', String(s.step)],
+               ['Words out', String(s.tokens.length)], ['Margin', fmt1(HEADROOM) + '×']])
+      : cells([['Heard', fmt1(Math.min(s.modelTime, RUN.sourceSeconds)) + 's'],
+               ['Spoken', fmt1(s.audioFrame * RUN.secondsPerFrame) + 's'],
+               ['Words out', String(s.tokens.length)],
+               ['Compute used', fmt1(s.computeTime) + 's']]);
+
+    if (s.tokens.length !== renderedWords) {
+      renderedWords = s.tokens.length;
+      const spoken = SENTENCES.filter(x => x.words[0][0] <= s.step);
+      scroll.innerHTML = spoken.map((sentence, i) => {
+        const words = sentence.words.filter(w => w[0] <= s.step).map(w => w[1]).join(' ');
+        const isLive = i === spoken.length - 1 && !s.done;
+        return `<div class="a-bubble ${isLive ? 'live' : 'done'}">${words}${isLive ? '<i class="a-caret"></i>' : ''}</div>`;
+      }).join('');
+      if (!spoken.length) {
+        scroll.innerHTML = `<div class="a-bubble">${s.started
+          ? 'Listening… Hibiki holds a couple of seconds of context before it starts speaking.'
+          : s.live ? 'Tap to start speaking French.' : 'Tap to translate this recording.'}</div>`;
+      }
+    }
+  };
+}
+const paintBar = (bar, v) => {
+  // speech RMS mostly lands in 0.1-0.5, so a linear meter reads as flat
+  const shown = v > 0 ? clamp(Math.sqrt(v) * 1.15, 0, 1) : 0;
+  bar.style.height = (2 + shown * 24) + 'px';
+  bar.style.background = v > .04 ? '#f0a33c' : '#33333f';
+};
+const cells = pairs => pairs
+  .map(([k, v]) => `<div class="a-cell"><span>${k}</span><strong>${v}</strong></div>`).join('');
+const iconMic = () => `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>`;
+const iconStop = () => `<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>`;
+
+/* ================================================================ B — Dual timeline */
+function variantB(root) {
+  const live = engine.mode === 'live';
+  const chosen = fileByName(engine.file);
+  const WINDOW = 150;                       // 12 s of rolling history in live mode
+
+  root.innerHTML = `
+    <div class="b-head">
+      <div>
+        <div class="b-title">${live ? 'Live session' : 'Translation run'}</div>
+        <div class="b-file" id="b-file">${live ? 'Microphone' : chosen.name}${live ? '' : '<span class="chev">▾</span>'}</div>
+      </div>
+      <div class="b-tabs">
+        <button data-mode="file">File</button><button data-mode="live">Live</button>
+      </div>
+    </div>
+    <div class="b-kpis" id="b-kpis"></div>
+    <div class="b-lanes">
+      <div class="b-lane-label"><span>French in</span><em>level only — never transcribed</em></div>
+      <canvas id="b-src"></canvas>
+      <canvas id="b-ruler"></canvas>
+      <div class="b-lane-label"><span>English out</span><em id="b-out-meta"></em></div>
+      <canvas id="b-tgt"></canvas>
+    </div>
+    <div class="b-gap" id="b-gap"></div>
+    <div class="b-ribbon" id="b-ribbon"></div>
+    ${live ? `
+      <div class="b-scrub">
+        <div class="b-track live">
+          <div class="b-gauge">
+            <div class="bar" id="b-gbar"></div>
+            <div class="thresh" id="b-gneed"></div>
+            <div class="txt">
+              <span>${fmt1(RUN.stepsPerSecond)} steps/s</span>
+              <span>needs ${fmt1(RUN.realTimeStepsPerSecond)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="b-scrub-meta">
+          <span id="b-pos">step 0</span><span id="b-time">0.0s elapsed</span>
+        </div>
+      </div>
+      <div class="b-live-cta"><button id="b-cta">Start listening</button></div>` : `
+      <div class="b-scrub">
+        <div class="b-track" id="b-track">
+          <div class="b-fill" id="b-fill"></div>
+          <div class="b-knob" id="b-knob"></div>
+        </div>
+        <div class="b-scrub-meta">
+          <span id="b-pos">step 0 / ${RUN.steps}</span>
+          <span id="b-time">0.0s model · 0.0s compute</span>
+        </div>
+      </div>`}`;
+
+  root.querySelectorAll('[data-mode]').forEach(button => {
+    button.classList.toggle('on', button.dataset.mode === engine.mode);
+    button.onclick = () => engine.setMode(button.dataset.mode);
+  });
+
+  if (!live) {
+    const picker = sheet(root, `
+      <div class="sh-title">Source recording</div>
+      <div class="sh-note">Real durations and rates from the repo. Only ${BAKED.name} has a baked run here.</div>
+      <div class="sh-head"><span>File</span><span class="num">Secs</span><span class="num">Frames</span><span class="num">Rate</span></div>
+      ${RUN.files.map(f => `
+        <div class="sh-row ${pickable(f) ? '' : 'off'} ${f.name === engine.file ? 'sel' : ''}" data-file="${f.name}">
+          <span>${f.name}</span>
+          <span class="num">${fmt1(f.seconds)}</span>
+          <span class="num">${f.frames}</span>
+          <span class="num">${f.rate / 1000}k</span>
+        </div>`).join('')}`);
+    root.querySelector('#b-file').onclick = () => picker.classList.add('open');
+  } else {
+    root.querySelector('#b-cta').onclick = () => engine.toggle();
+  }
+
+  const lane = (canvas, envelope, ink, h) => {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return (step, from, to) => {
+      ctx.clearRect(0, 0, w, h);
+      const span = to - from, bw = w / span;
+      const first = Math.max(0, from), last = Math.min(envelope.length, to);
+      for (let i = first; i < last; i++) {
+        const v = Math.max(.012, envelope[i]);
+        const barHeight = v * (h - 6);
+        ctx.fillStyle = i <= step ? ink : '#ddd8cb';
+        ctx.fillRect(((i - from) / span) * w, (h - barHeight) / 2, Math.max(.7, bw - .45), barHeight);
+      }
+      const x = clamp(((step - from) / span) * w, 0, w - 1.5);
+      ctx.fillStyle = '#c8632f';
+      ctx.fillRect(x, 0, 1.5, h);
+    };
+  };
+  const drawSrc = lane(root.querySelector('#b-src'), RUN.sourceEnvelope, '#14141a', 74);
+  const drawTgt = lane(root.querySelector('#b-tgt'), RUN.targetEnvelope, '#2f7d68', 74);
+
+  const rulerCanvas = root.querySelector('#b-ruler');
+  const drawRuler = (() => {
+    const dpr = window.devicePixelRatio || 1;
+    const w = rulerCanvas.clientWidth, h = 26;
+    rulerCanvas.width = Math.round(w * dpr); rulerCanvas.height = Math.round(h * dpr);
+    rulerCanvas.style.height = h + 'px';
+    const ctx = rulerCanvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = '600 9px ui-monospace, Menlo, monospace';
+    return (from, to) => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = '#ddd8cb';
+      ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+      const span = to - from;
+      // file mode labels absolute seconds; live mode labels seconds behind now
+      const ticks = live
+        ? [-10, -5, 0].map(offset => ({ frame: to + offset / RUN.secondsPerFrame,
+                                        text: offset === 0 ? 'now' : offset + 's' }))
+        : Array.from({ length: 9 }, (_, i) => ({ frame: (i * 5) / RUN.secondsPerFrame,
+                                                 text: (i * 5) + 's' }));
+      for (const tick of ticks) {
+        const x = clamp(((tick.frame - from) / span) * w, 0, w - 26);
+        ctx.strokeStyle = '#ccc6b6';
+        ctx.beginPath(); ctx.moveTo(x, h / 2 - 4); ctx.lineTo(x, h / 2 + 4); ctx.stroke();
+        ctx.fillStyle = '#a8a193';
+        ctx.fillText(tick.text, x + 3, h / 2 - 6);
+      }
+    };
+  })();
+
+  if (!live) {
+    const track = root.querySelector('#b-track');
+    const seekTo = event => {
+      const box = track.getBoundingClientRect();
+      engine.seek(((event.clientX - box.left) / box.width) * RUN.steps, false);
+    };
+    track.addEventListener('pointerdown', event => {
+      track.setPointerCapture(event.pointerId); seekTo(event);
+    });
+    track.addEventListener('pointermove', event => {
+      if (track.hasPointerCapture(event.pointerId)) seekTo(event);
+    });
+  }
+
+  const ribbon = root.querySelector('#b-ribbon');
+  ribbon.innerHTML = RUN.tokens
+    .map(([frame, word], i) => `<span class="w" data-i="${i}">${word} </span>`).join('');
+  const spans = [...ribbon.querySelectorAll('.w')];
+
+  return function update(s) {
+    const from = s.live ? s.step - WINDOW : 0;
+    const to = s.live ? s.step : RUN.steps;
+    drawSrc(s.step, from, to); drawTgt(s.step, from, to); drawRuler(from, to);
+
+    root.querySelector('#b-kpis').innerHTML = s.live
+      ? kpi([['Elapsed', fmt1(s.modelTime), 's', false], ['Steps', String(s.step), '', false],
+             ['Margin', fmt1(HEADROOM), '×', true]])
+      : kpi([['Audio', fmt1(RUN.sourceSeconds), 's', false],
+             ['Wall clock', fmt1(RUN.elapsedSeconds), 's', false],
+             ['Real time', fmt1(HEADROOM), '×', false]]);
+
+    root.querySelector('#b-out-meta').textContent = s.live
+      ? `${s.step > 1 ? s.audioFrame + 1 : 0} frames decoded`
+      : `${s.step > 1 ? s.audioFrame + 1 : 0} / ${RUN.writtenFrames} frames decoded`;
+
+    root.querySelector('#b-gap').innerHTML = s.live
+      ? `Output trails input by the <b>2 frames</b> seven delayed codebooks cost, plus the
+         context Hibiki banks before speaking — <b>${fmt1(ONSET_FRAMES * RUN.secondsPerFrame)}s</b> on this voice.`
+      : `First French speech at <b>${fmt1(RUN.firstVoicedSource * RUN.secondsPerFrame)}s</b>,
+         first English at <b>${fmt1(RUN.firstVoicedTarget * RUN.secondsPerFrame)}s</b> —
+         Hibiki banks <b>${fmt1(ONSET_FRAMES * RUN.secondsPerFrame)}s</b> of context, then never falls behind again.`;
+
+    if (s.live) {
+      const gauge = root.querySelector('#b-gbar');
+      const ceiling = RUN.stepsPerSecond * 1.35;
+      gauge.style.width = (RUN.stepsPerSecond / ceiling * 100) + '%';
+      root.querySelector('#b-gneed').style.left = (RUN.realTimeStepsPerSecond / ceiling * 100) + '%';
+      root.querySelector('#b-pos').textContent = `step ${s.step}`;
+      root.querySelector('#b-time').textContent = `${fmt1(s.modelTime)}s elapsed`;
+      const cta = root.querySelector('#b-cta');
+      cta.textContent = s.playing ? 'Stop' : s.done ? 'Start again' : 'Start listening';
+      cta.classList.toggle('on', s.playing);
+    } else {
+      root.querySelector('#b-fill').style.width = (s.progress * 100) + '%';
+      root.querySelector('#b-knob').style.left = (s.progress * 100) + '%';
+      root.querySelector('#b-pos').textContent = `step ${s.step} / ${RUN.steps}`;
+      root.querySelector('#b-time').textContent =
+        `${fmt1(s.modelTime)}s model · ${fmt1(s.computeTime)}s compute`;
+    }
+
+    const cutoff = s.tokens.length - 1;
+    spans.forEach((span, i) => {
+      span.className = 'w' + (i > cutoff ? (s.live ? ' future' : '')
+        : i >= cutoff - 3 ? ' now' : ' past');
+    });
+    // keep the live word about two thirds down the ribbon
+    const liveSpan = spans[clamp(cutoff, 0, spans.length - 1)];
+    if (liveSpan) {
+      ribbon.scrollTop = Math.max(
+        0, liveSpan.offsetTop + liveSpan.offsetHeight - ribbon.clientHeight * 0.66);
+    }
+  };
+}
+const kpi = rows => rows.map(([k, v, unit, ok]) =>
+  `<div class="b-kpi${ok ? ' ok' : ''}"><span>${k}</span><strong>${v}<i>${unit}</i></strong></div>`).join('');
+
+/* ================================================================ C — Teleprompter */
+function variantC(root) {
+  const live = engine.mode === 'live';
+  const chosen = fileByName(engine.file);
+  root.innerHTML = `
+    <div class="c-ring ${live ? 'rec' : ''}" id="c-ring"></div>
+    <div class="c-body" id="c-body"></div>
+    <div class="c-foot">
+      <span id="c-left">on device · 1B</span>
+      <span id="c-right"></span>
+    </div>`;
+  // the whole screen is the tap target, but not while the idle chooser is up
+  root.onclick = event => {
+    if (event.target.closest('.c-idle, .sheet-wrap')) return;
+    engine.toggle();
+  };
+
+  const picker = sheet(root, `
+    <div class="sh-title">Only ${BAKED.name} has a baked run in this prototype</div>
+    ${RUN.files.map(f => `
+      <div class="sh-row ${pickable(f) ? '' : 'off'} ${f.name === engine.file ? 'sel' : ''}" data-file="${f.name}">
+        <span>${f.name}</span><span class="m">${fmt1(f.seconds)}s</span>
+      </div>`).join('')}`);
+
+  const body = root.querySelector('#c-body');
+  const ring = root.querySelector('#c-ring');
+  let renderedWords = -1, wasIdle = null;
+
+  return function update(s) {
+    ring.style.opacity = .2 + clamp(s.level, 0, 1) * .8;
+
+    const idle = !s.tokens.length;
+    if (idle) {
+      if (wasIdle !== true) {
+        wasIdle = true; renderedWords = -1;
+        // mode and file live ONLY here — once words start, the screen is just words
+        body.innerHTML = s.started ? `
+          <div class="c-line prev">Listening…</div>
+          <div class="c-line now">${s.live ? 'Speak French.' : 'Starting.'}</div>` : `
+          <div class="c-idle">
+            <h1>Translate French</h1>
+            <div class="c-choice ${!s.live ? 'on' : ''}" data-choose="file">
+              <span class="ic">${iconWave()}</span>
+              <span class="t"><b>Play a recording</b><span>${chosen.name} · ${fmt1(chosen.seconds)}s</span></span>
+            </div>
+            <div class="c-choice ${s.live ? 'on' : ''}" data-choose="live">
+              <span class="ic">${iconMic()}</span>
+              <span class="t"><b>Speak</b><span>listen to the microphone</span></span>
+            </div>
+            <div class="c-pick" id="c-pick" style="visibility:${s.live ? 'hidden' : 'visible'}">Choose a different file</div>
+            <div class="c-hint">Then tap anywhere to start</div>
+          </div>`;
+        body.querySelectorAll('[data-choose]').forEach(choice => {
+          choice.onclick = () => engine.setMode(choice.dataset.choose);
+        });
+        const pick = body.querySelector('#c-pick');
+        if (pick) pick.onclick = () => picker.classList.add('open');
+      }
+      root.querySelector('#c-left').textContent = s.live ? 'microphone' : chosen.name;
+      root.querySelector('#c-right').innerHTML = s.live
+        ? '<b class="rec">live</b>' : `<b>${fmt1(HEADROOM)}×</b> real time`;
+      return;
+    }
+    wasIdle = false;
+
+    if (s.tokens.length !== renderedWords) {
+      renderedWords = s.tokens.length;
+      const spoken = SENTENCES.filter(x => x.words[0][0] <= s.step);
+      const visible = spoken.slice(-4);
+      body.innerHTML = visible.map((sentence, i) => {
+        const fromEnd = visible.length - 1 - i;
+        const shown = sentence.words.filter(w => w[0] <= s.step).map(w => w[1]).join(' ');
+        return `<div class="c-line ${fromEnd === 0 ? 'now' : fromEnd === 1 ? 'prev' : 'old'}">${shown}</div>`;
+      }).join('');
+    }
+    root.querySelector('#c-left').textContent = `${fmt1(s.modelTime)}s · ${s.tokens.length} words`;
+    root.querySelector('#c-right').innerHTML = s.live
+      ? `<b class="rec">●</b> ${fmt1(RUN.stepsPerSecond)}/s`
+      : `<b>${fmt1(HEADROOM)}×</b> real time`;
+  };
+}
+const iconWave = () => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2M8 7v10M12 4v16M16 8v8M21 12h-2"/></svg>`;
+
+/* ================================================================ D — Dev console */
+function variantD(root) {
+  const live = engine.mode === 'live';
+  const chosen = fileByName(engine.file);
+  root.innerHTML = `
+    <div class="d-head">
+      <div class="d-cmd" id="d-cmd">python -m <b>hibiki_mlx</b> ${live
+        ? '<u>--mic</u>' : `<u>${chosen.name}</u> out.wav`}</div>
+      <div class="d-badge">${live ? 'MIC · LIVE' : 'BF16 · MLX'}</div>
+    </div>
+    <div class="d-grid" id="d-grid"></div>
+    <div class="d-pipe">
+      <div class="d-sec"><span>Step pipeline</span><span>${fmt1(1000 / RUN.stepsPerSecond)} ms/step avg</span></div>
+      <div class="d-stages" id="d-stages">
+        <div class="d-stage">encode<b>mimi</b></div>
+        <div class="d-stage">generate<b>hibiki</b></div>
+        <div class="d-stage">decode<b>mimi</b></div>
+        <div class="d-stage">text<b>sp</b></div>
+      </div>
+      <div class="d-delay">
+        <span class="box" id="d-sf">src 0</span>→
+        <span class="box" id="d-tf">text 0</span>→
+        <span class="box" id="d-af">audio —</span>
+        <span style="margin-left:auto">2-frame codebook delay</span>
+      </div>
+    </div>
+    ${live ? `
+      <div class="d-margin">
+        <div class="d-sec"><span>Real-time margin</span><span>${fmt1(HEADROOM)}× headroom</span></div>
+        <div class="d-bar">
+          <div class="fill" id="d-fill"></div>
+          <div class="need" id="d-need"></div>
+          <div class="lbl">
+            <span>${fmt1(RUN.stepsPerSecond)} steps/s</span>
+            <span>${fmt1(RUN.realTimeStepsPerSecond)} needed</span>
+          </div>
+        </div>
+      </div>` : ''}
+    <div class="d-term" id="d-term"></div>
+    <div class="d-run"><button id="d-run">▶ RUN</button></div>`;
+
+  const picker = sheet(root, `
+    <div class="sh-title">argv[1] — input</div>
+    <div class="sh-note">Real durations, frame counts and rates from the repo. 48 kHz files are
+      resampled by read_pcm. Only ${BAKED.name} has a baked run in this prototype.</div>
+    ${RUN.files.map((f, i) => `
+      <div class="sh-row ${pickable(f) ? '' : 'off'} ${f.name === engine.file ? 'sel' : ''}" data-file="${f.name}">
+        <span class="i">[${i + 1}]</span><span>${f.name}</span>
+        <span class="m">${fmt1(f.seconds)}s</span><span class="m">${f.rate / 1000}kHz</span>
+      </div>`).join('')}
+    <div class="sh-row off"><span class="i">[m]</span><span>--mic</span>
+      <span class="m">live</span><span class="m">24kHz</span></div>`);
+  root.querySelector('#d-cmd').onclick = () => {
+    if (live) engine.setMode('file'); else picker.classList.add('open');
+  };
+
+  const stages = [...root.querySelectorAll('.d-stage')];
+  const term = root.querySelector('#d-term');
+  const runBtn = root.querySelector('#d-run');
+  runBtn.onclick = () => engine.toggle();
+  if (live) {
+    const ceiling = RUN.stepsPerSecond * 1.35;
+    root.querySelector('#d-fill').style.width = (RUN.stepsPerSecond / ceiling * 100) + '%';
+    root.querySelector('#d-need').style.left = (RUN.realTimeStepsPerSecond / ceiling * 100) + '%';
+  }
+
+  const tag = text => `<div class="ln"><span class="tag">[hibiki]</span> ${text}</div>`;
+  let renderedWords = -1, renderedDone = null;
+
+  return function update(s) {
+    root.querySelector('#d-grid').innerHTML = s.live
+      ? dcells([['Elapsed', fmt1(s.modelTime), 's', false], ['Steps', String(s.step), '', false],
+                ['Frames in', String(s.step), '', false],
+                ['Chunk buffer', '< 1', 'f', false],
+                ['Throughput', fmt1(RUN.stepsPerSecond), '/s', false],
+                ['Margin', fmt1(HEADROOM), '×', true]])
+      : dcells([['Audio in', fmt1(RUN.sourceSeconds), 's', false],
+                ['Src frames', String(RUN.sourceFrames), '', false],
+                ['Steps', String(s.step), '/' + RUN.steps, false],
+                ['Wall clock', fmt1(s.computeTime), 's', false],
+                ['Throughput', fmt1(RUN.stepsPerSecond), '/s', false],
+                ['Headroom', fmt1(HEADROOM), '×', true]]);
+
+    root.querySelector('#d-sf').textContent =
+      `src ${s.live || s.step < RUN.sourceFrames ? s.sourceFrame : '—'}`;
+    root.querySelector('#d-tf').textContent = `text ${s.step}`;
+    root.querySelector('#d-af').textContent = `audio ${s.step > 1 ? s.audioFrame : '—'}`;
+    runBtn.textContent = s.playing
+      ? (s.live ? '■ STOP' : '■ STOP')
+      : s.done ? '⟲ RUN AGAIN' : (s.live ? '▶ LISTEN' : '▶ RUN');
+    runBtn.classList.toggle('on', s.playing);
+
+    const active = s.playing ? Math.floor(engine.frame * 4) % 4 : -1;
+    stages.forEach((stage, i) => stage.classList.toggle('on', i === active));
+
+    if (s.tokens.length !== renderedWords || s.done !== renderedDone) {
+      renderedWords = s.tokens.length; renderedDone = s.done;
+      // live-mode lines are PROPOSED copy — the CLI has no capture path yet
+      const head = s.live
+        ? tag(RUN.logLines[0]) + tag(RUN.logLines[1]) +
+          `<div class="ln prop"><span class="tag">[hibiki]</span> listening on the default input device</div>` +
+          `<div class="ln prop"><span class="tag">[hibiki]</span> streaming 80 ms frames, no total known</div>`
+        : RUN.logLines.slice(0, 4).map(tag).join('');
+      const text = s.tokens.length
+        ? `<div class="ln out">${s.tokens.map(t => t[1]).join(' ')}</div>` : '';
+      const tail = s.done
+        ? (s.live
+            ? `<div class="ln prop"><span class="tag">[hibiki]</span> stopped: ${s.step} steps, ${fmt1(s.modelTime)}s captured</div>`
+            : RUN.logLines.slice(4).map(tag).join('')) +
+          tag(`<span class="dim">${TAIL_STEPS} finalization steps · per-step timings need --metrics</span>`)
+        : '';
+      term.innerHTML = head + text + tail;
+    }
+  };
+}
+const dcells = rows => rows.map(([k, v, unit, hi]) =>
+  `<div class="d-cell${hi ? ' hi' : ''}"><span>${k}</span><strong>${v}<i>${unit}</i></strong></div>`).join('');
+
+/* ---------------------------------------------------------------- switcher wiring */
+const VARIANTS = {
+  A: { name: 'Interpreter',   build: variantA },
+  B: { name: 'Dual timeline', build: variantB },
+  C: { name: 'Teleprompter',  build: variantC },
+  D: { name: 'Dev console',   build: variantD },
+};
+const KEYS = Object.keys(VARIANTS);
+const view = document.getElementById('view');
+const screenEl = document.querySelector('.screen');
+let current = null;
+
+function mount(key) {
+  if (!VARIANTS[key]) key = 'A';
+  current = key;
+  const url = new URL(location.href);
+  url.searchParams.set('variant', key);
+  url.searchParams.set('mode', engine.mode);
+  history.replaceState(null, '', url);
+
+  engine.listeners.length = 0;
+  // theme lives on .screen so the shared status bar picks up the variant's background
+  screenEl.className = 'screen v-' + key.toLowerCase();
+  const update = VARIANTS[key].build(view);
+  engine.listeners.push(update);
+  document.getElementById('vlabel').textContent = `${key} — ${VARIANTS[key].name}`;
+  paintModes();
+  engine.emit();
+}
+const remount = () => mount(current);
+const cycle = delta => mount(KEYS[(KEYS.indexOf(current) + delta + KEYS.length) % KEYS.length]);
+
+document.getElementById('prev').onclick = () => cycle(-1);
+document.getElementById('next').onclick = () => cycle(1);
+document.getElementById('reset').onclick = () => engine.seek(0, false);
+
+const modeBox = document.getElementById('modes');
+modeBox.innerHTML = [['file', 'file'], ['live', 'live']]
+  .map(([m, label]) => `<button data-m="${m}" title="input mode (M)">${label}</button>`).join('');
+function paintModes() {
+  [...modeBox.children].forEach(b => b.classList.toggle('on', b.dataset.m === engine.mode));
+}
+modeBox.onclick = event => { if (event.target.dataset.m) engine.setMode(event.target.dataset.m); };
+
+const rateBox = document.getElementById('rate');
+rateBox.innerHTML = [1, 4, 12].map(r => `<button data-r="${r}">${r}×</button>`).join('');
+const paintRate = () => [...rateBox.children]
+  .forEach(b => b.classList.toggle('on', +b.dataset.r === engine.rate));
+rateBox.onclick = event => {
+  if (!event.target.dataset.r) return;
+  engine.rate = +event.target.dataset.r; paintRate();
+};
+paintRate();
+
+addEventListener('keydown', event => {
+  const tag = (event.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || event.target.isContentEditable) return;
+  if (event.key === 'ArrowLeft') cycle(-1);
+  else if (event.key === 'ArrowRight') cycle(1);
+  else if (event.key === 'm' || event.key === 'M') engine.setMode(engine.mode === 'file' ? 'live' : 'file');
+  else if (event.key === ' ') { event.preventDefault(); engine.toggle(); }
+});
+
+/* scale the device down on short windows so the whole screen stays visible */
+const fit = document.querySelector('.fit');
+const device = document.querySelector('.device');
+function resize() {
+  const scale = Math.min(1, (window.innerHeight - 215) / 852, (window.innerWidth - 32) / 393);
+  device.style.transform = `scale(${scale})`;
+  fit.style.height = (852 * scale) + 'px';
+}
+addEventListener('resize', () => { resize(); remount(); });
+resize();
+
+const params = new URLSearchParams(location.search);
+if (params.get('mode') === 'live') engine.mode = 'live';
+mount(params.get('variant') || 'A');
+// ?frame=300&play=1 — deep-link a moment in the run, handy for screenshots
+if (params.has('frame')) engine.seek(Number(params.get('frame')) || 0, params.get('play') === '1');
+else if (params.get('play') === '1') engine.seek(0, true);
+</script>
+</body>
+</html>

@@ -2,7 +2,10 @@
 .claude
 
 # Downloaded model artifact bundles: ~4 GB, CC-BY 4.0, never redistributed here.
-artifacts/
+/artifacts/
+
+# Generated local benchmark evidence.
+/benchmarks/
 
 # Python build, environment, and tool caches.
 .venv/

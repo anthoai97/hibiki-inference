@@ -20,5 +20,10 @@ dependencies = [
 requires = ["uv_build>=0.8.22,<0.9.0"]
 build-backend = "uv_build"
 
+[project.scripts]
+hibiki-benchmark = "hibiki_mlx.benchmark:main"
+hibiki-quantize = "hibiki_mlx.quantize:main"
+hibiki-upload = "hibiki_mlx.upload:main"
+
 [tool.uv.build-backend]
 module-root = ""

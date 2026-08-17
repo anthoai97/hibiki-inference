@@ -9,6 +9,7 @@ from pathlib import Path
 import mlx.core as mx
 import sentencepiece
 
+from .artifacts import QuantizationSpec, quantize_linear_layers
 from .download import DEFAULT_ARTIFACT_DIRECTORY
 from .models.lm import Lm, LmConfig
 from .models.mimi import Mimi, mimi_202407, remap_released_weights
@@ -75,6 +76,12 @@ def load_model(
 
     lm = Lm(lm_config)
     lm.set_dtype(dtype)
+    try:
+        quantization = QuantizationSpec.from_config(config)
+    except ValueError as error:
+        raise ModelLoadError(f"invalid quantization declaration in {artifact_directory}: {error}") from error
+    if quantization is not None:
+        quantize_linear_layers(lm, quantization)
     lm.load_weights(str(hibiki_path), strict=True)
 
     tokenizer = sentencepiece.SentencePieceProcessor(str(tokenizer_path))

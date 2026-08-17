@@ -1,6 +1,6 @@
 # Hibiki 1B MLX inference architecture
 
-This document gives a high-level view of the inference flow. Exact model settings, tensor shapes, token ids, and source references live in [the core reference](./core-library.md). The confirmed version-one package and session behavior lives in [the Python package contract](./python-package.md).
+This document gives a high-level view of the inference flow. Exact model settings, tensor shapes, token ids, and source references live in [the core reference](./core-library.md).
 
 This project is a clean MLX reimplementation. It loads the released Hibiki and Mimi weights directly and does **not** import, wrap, or depend on `moshi_mlx`. Upstream Moshi code is used only to understand expected behavior and build compatibility tests.
 

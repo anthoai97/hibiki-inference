@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -79,6 +81,40 @@ class BenchmarkCase:
 
 
 @dataclass(frozen=True)
+class TranscriptComparison:
+    """One variant transcript measured against an external English reference."""
+
+    asset: Path
+    variant: str
+    reference_key: str
+    reference_transcript: str
+    candidate_transcript: str
+    reference_words: int
+    word_errors: int
+
+    @property
+    def exact_match(self) -> bool:
+        return self.word_errors == 0
+
+    @property
+    def word_error_rate(self) -> float:
+        return self.word_errors / max(self.reference_words, 1)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "asset": str(self.asset),
+            "variant": self.variant,
+            "reference_key": self.reference_key,
+            "reference_transcript": self.reference_transcript,
+            "candidate_transcript": self.candidate_transcript,
+            "reference_words": self.reference_words,
+            "word_errors": self.word_errors,
+            "word_error_rate": self.word_error_rate,
+            "exact_match": self.exact_match,
+        }
+
+
+@dataclass(frozen=True)
 class BenchmarkReport:
     """All variant results for one deterministic set of source WAV files."""
 
@@ -86,15 +122,32 @@ class BenchmarkReport:
     variants: tuple[VariantResult, ...]
     cases: tuple[BenchmarkCase, ...]
     settings: dict[str, object] = field(default_factory=dict)
+    reference_transcripts: dict[str, str] = field(default_factory=dict)
+    reference_transcript_file: Path | None = None
 
     def as_dict(self) -> dict[str, object]:
+        comparisons = compare_transcripts(
+            self.cases,
+            assets_directory=self.assets_directory,
+            references=self.reference_transcripts,
+        )
         return {
             "schema_version": 1,
             "assets_directory": str(self.assets_directory),
             "settings": self.settings,
+            "reference": {
+                "transcript_file": (
+                    str(self.reference_transcript_file)
+                    if self.reference_transcript_file is not None
+                    else None
+                ),
+                "transcript_count": len(self.reference_transcripts),
+            },
             "variants": [variant.as_dict() for variant in self.variants],
             "cases": [case.as_dict() for case in self.cases],
             "summary": _summarize_cases(self.cases),
+            "accuracy": _summarize_comparisons(comparisons),
+            "accuracy_cases": [comparison.as_dict() for comparison in comparisons],
         }
 
 
@@ -200,6 +253,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="directory for benchmark.json and benchmark.csv",
     )
+    parser.add_argument(
+        "--transcripts",
+        type=Path,
+        help="external English transcript manifest (defaults to assets/transcripts.json when present)",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="merge existing BF16/Q8 worker reports without rerunning inference",
+    )
     parser.add_argument("--seed", type=int, default=BenchmarkSettings.seed)
     parser.add_argument("--temp", type=float, default=BenchmarkSettings.temp)
     parser.add_argument("--text-top-k", type=int, default=BenchmarkSettings.text_top_k)
@@ -215,26 +278,83 @@ def discover_assets(directory: Path) -> list[Path]:
     return sorted(path for path in directory.rglob("*.wav") if path.is_file())
 
 
+def load_reference_transcripts(path: Path) -> dict[str, str]:
+    """Read the ``relative/wav-path -> {text: ...}`` reference manifest."""
+    try:
+        document = json.loads(path.read_text())
+    except OSError as error:
+        raise ValueError(f"could not read transcript manifest {path}: {error}") from error
+    except json.JSONDecodeError as error:
+        raise ValueError(f"transcript manifest {path} is not valid JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise ValueError(f"transcript manifest {path} must contain an object")
+
+    transcripts = {}
+    for key, value in document.items():
+        if not isinstance(key, str) or not isinstance(value, dict):
+            raise ValueError(f"transcript manifest {path} must map paths to transcript objects")
+        text = value.get("text")
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError(f"transcript manifest {path} has no text for {key!r}")
+        transcripts[key] = text
+    return transcripts
+
+
+def compare_transcripts(
+    cases: tuple[BenchmarkCase, ...],
+    *,
+    assets_directory: Path,
+    references: dict[str, str],
+) -> tuple[TranscriptComparison, ...]:
+    """Measure each generated transcript against its external English reference."""
+    comparisons = []
+    for case in sorted(cases, key=lambda item: (str(item.asset), item.variant)):
+        reference_key = _asset_key(case.asset, assets_directory)
+        reference = references.get(reference_key)
+        if reference is None:
+            continue
+        reference_words = _words(reference)
+        candidate_words = _words(case.transcript)
+        comparisons.append(
+            TranscriptComparison(
+                asset=case.asset,
+                variant=case.variant,
+                reference_key=reference_key,
+                reference_transcript=reference,
+                candidate_transcript=case.transcript,
+                reference_words=len(reference_words),
+                word_errors=_word_error_count(reference_words, candidate_words),
+            )
+        )
+    return tuple(comparisons)
+
+
 def benchmark_variant(
     runtime: BenchmarkRuntime,
     name: str,
     artifact_directory: Path,
     assets: list[Path],
     settings: BenchmarkSettings,
+    *,
+    progress: Callable[[str], None] | None = None,
 ) -> tuple[VariantResult, tuple[BenchmarkCase, ...]]:
     """Load and warm one variant once, then benchmark each asset in a fresh session."""
+    _progress(progress, f"{name}: loading {artifact_directory}")
     runtime.seed(settings.seed)
     started = runtime.now()
     model = runtime.load_model(artifact_directory)
     load_seconds = runtime.now() - started
+    _progress(progress, f"{name}: loaded in {load_seconds:.1f}s; warming up")
 
     warmup_session = runtime.make_session(model, settings)
     started = runtime.now()
     warmup_session.warmup()
     warmup_seconds = runtime.now() - started
+    _progress(progress, f"{name}: warmup completed in {warmup_seconds:.1f}s")
 
     cases = []
-    for asset in assets:
+    for index, asset in enumerate(assets, start=1):
+        _progress(progress, f"{name}: [{index}/{len(assets)}] translating {asset}")
         runtime.seed(settings.seed)
         pcm = runtime.read_pcm(asset)
         session = runtime.make_session(model, settings)
@@ -243,21 +363,24 @@ def benchmark_variant(
         results = _translate(session, pcm)
         processing_seconds = runtime.now() - started
         mlx_active_bytes, mlx_peak_bytes = runtime.memory_bytes()
-        cases.append(
-            BenchmarkCase(
-                variant=name,
-                asset=asset,
-                input_seconds=len(pcm) / SAMPLE_RATE,
-                steps=len(results),
-                processing_seconds=processing_seconds,
-                output_seconds=sum(
-                    len(result.pcm) for result in results if result.pcm is not None
-                )
-                / SAMPLE_RATE,
-                transcript=session.text,
-                mlx_active_bytes=mlx_active_bytes,
-                mlx_peak_bytes=mlx_peak_bytes,
-            )
+        case = BenchmarkCase(
+            variant=name,
+            asset=asset,
+            input_seconds=len(pcm) / SAMPLE_RATE,
+            steps=len(results),
+            processing_seconds=processing_seconds,
+            output_seconds=sum(len(result.pcm) for result in results if result.pcm is not None)
+            / SAMPLE_RATE,
+            transcript=session.text,
+            mlx_active_bytes=mlx_active_bytes,
+            mlx_peak_bytes=mlx_peak_bytes,
+        )
+        cases.append(case)
+        _progress(
+            progress,
+            f"{name}: [{index}/{len(assets)}] {case.steps} steps in "
+            f"{case.processing_seconds:.1f}s ({case.steps_per_second:.1f} steps/s, "
+            f"real-time factor {case.real_time_factor:.2f})",
         )
     return (
         VariantResult(
@@ -278,10 +401,42 @@ def _translate(session: BenchmarkSession, pcm: np.ndarray) -> list[StepResult]:
     return results
 
 
+_WORD_PATTERN = re.compile(r"[^\W_]+(?:['’][^\W_]+)*", re.UNICODE)
+
+
+def _asset_key(asset: Path, assets_directory: Path) -> str:
+    try:
+        return asset.resolve().relative_to(assets_directory.resolve()).as_posix()
+    except ValueError as error:
+        raise ValueError(f"asset {asset} is not below {assets_directory}") from error
+
+
+def _words(text: str) -> list[str]:
+    return _WORD_PATTERN.findall(text.casefold())
+
+
+def _word_error_count(reference: list[str], candidate: list[str]) -> int:
+    """Return token-level Levenshtein distance without needing a third-party scorer."""
+    previous = list(range(len(candidate) + 1))
+    for reference_index, reference_word in enumerate(reference, start=1):
+        current = [reference_index]
+        for candidate_index, candidate_word in enumerate(candidate, start=1):
+            current.append(
+                min(
+                    previous[candidate_index] + 1,
+                    current[candidate_index - 1] + 1,
+                    previous[candidate_index - 1] + (reference_word != candidate_word),
+                )
+            )
+        previous = current
+    return previous[-1]
+
+
 def write_report(report: BenchmarkReport, directory: Path) -> None:
     """Write the complete benchmark evidence as JSON and per-file CSV rows."""
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / "benchmark.json").write_text(json.dumps(report.as_dict(), indent=2) + "\n")
+    document = report.as_dict()
+    (directory / "benchmark.json").write_text(json.dumps(document, indent=2) + "\n")
 
     fields = [
         "variant",
@@ -311,6 +466,25 @@ def write_report(report: BenchmarkReport, directory: Path) -> None:
                 row[name] = f"{row[name]:.6f}"
             writer.writerow(row)
 
+    accuracy_fields = [
+        "asset",
+        "variant",
+        "reference_key",
+        "reference_words",
+        "word_errors",
+        "word_error_rate",
+        "exact_match",
+        "reference_transcript",
+        "candidate_transcript",
+    ]
+    with (directory / "accuracy.csv").open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=accuracy_fields)
+        writer.writeheader()
+        for comparison in document["accuracy_cases"]:
+            row = dict(comparison)
+            row["word_error_rate"] = f"{row['word_error_rate']:.6f}"
+            writer.writerow(row)
+
 
 def main(argv: list[str] | None = None) -> int:
     """Run BF16 and Q8 workers in clean processes, then merge their reports."""
@@ -331,30 +505,78 @@ def main(argv: list[str] | None = None) -> int:
     assets = discover_assets(arguments.assets)
     if not assets:
         parser.error(f"no WAV files found below {arguments.assets}")
+    _log(f"discovered {len(assets)} WAV files below {arguments.assets}")
+    transcript_file = _transcript_file(arguments)
+    if transcript_file is None:
+        reference_transcripts: dict[str, str] = {}
+        _log("no external transcript manifest found; accuracy metrics will be omitted")
+    else:
+        try:
+            reference_transcripts = load_reference_transcripts(transcript_file)
+        except ValueError as error:
+            parser.error(str(error))
+        matched = sum(
+            _asset_key(asset, arguments.assets) in reference_transcripts for asset in assets
+        )
+        _log(
+            f"loaded {len(reference_transcripts)} external transcripts from {transcript_file} "
+            f"({matched}/{len(assets)} assets matched)"
+        )
     output_directory = arguments.output_dir or _default_output_directory()
     if output_directory.exists():
-        parser.error(f"output directory already exists: {output_directory}")
-    output_directory.mkdir(parents=True)
+        if not arguments.resume:
+            parser.error(
+                f"output directory already exists: {output_directory} "
+                "(pass --resume to reuse complete worker reports)"
+            )
+        if not output_directory.is_dir():
+            parser.error(f"output path is not a directory: {output_directory}")
+    elif arguments.resume:
+        parser.error(f"cannot resume because output directory does not exist: {output_directory}")
+    else:
+        output_directory.mkdir(parents=True)
 
     variants = (("bf16", arguments.bf16_artifacts), ("q8", arguments.q8_artifacts))
     reports = []
     for name, artifact_directory in variants:
         worker_result = output_directory / f"{name}.worker.json"
-        subprocess.run(
-            _worker_command(arguments, name, worker_result),
-            check=True,
-        )
+        if arguments.resume:
+            if not worker_result.is_file():
+                parser.error(f"cannot resume; required worker report is missing: {worker_result}")
+            _log(f"reusing completed {name} worker report {worker_result}")
+        else:
+            _log(f"starting {name} worker for {artifact_directory}")
+            subprocess.run(
+                _worker_command(arguments, name, worker_result),
+                check=True,
+            )
         reports.append(_read_worker_report(worker_result))
+        if not arguments.resume:
+            _log(f"finished {name} worker")
 
     report = BenchmarkReport(
         assets_directory=arguments.assets,
         variants=tuple(variant for worker in reports for variant in worker.variants),
         cases=tuple(case for worker in reports for case in worker.cases),
         settings=_settings_dict(settings),
+        reference_transcripts=reference_transcripts,
+        reference_transcript_file=transcript_file,
     )
     write_report(report, output_directory)
-    print(f"[hibiki-benchmark] wrote {output_directory / 'benchmark.json'}")
-    print(f"[hibiki-benchmark] wrote {output_directory / 'benchmark.csv'}")
+    _log(f"wrote {output_directory / 'benchmark.json'}")
+    _log(f"wrote {output_directory / 'benchmark.csv'}")
+    _log(f"wrote {output_directory / 'accuracy.csv'}")
+    for name, accuracy in _summarize_comparisons(
+        compare_transcripts(
+            report.cases,
+            assets_directory=report.assets_directory,
+            references=report.reference_transcripts,
+        )
+    ).items():
+        _log(
+            f"{name}: reference WER {accuracy['word_error_rate']:.2%}, "
+            f"exact matches {accuracy['exact_matches']}/{accuracy['cases']}"
+        )
     return 0
 
 
@@ -374,6 +596,7 @@ def _run_worker(arguments: argparse.Namespace, settings: BenchmarkSettings) -> i
         variants[name],
         assets,
         settings,
+        progress=_log,
     )
     report = BenchmarkReport(
         assets_directory=arguments.assets,
@@ -384,7 +607,7 @@ def _run_worker(arguments: argparse.Namespace, settings: BenchmarkSettings) -> i
     result_path = arguments._worker_result
     assert result_path is not None
     result_path.write_text(json.dumps(report.as_dict(), indent=2) + "\n")
-    print(f"[hibiki-benchmark] completed {name}: {len(cases)} files")
+    _log(f"completed {name}: {len(cases)} files")
     return 0
 
 
@@ -461,13 +684,25 @@ def _settings_dict(settings: BenchmarkSettings) -> dict[str, object]:
     }
 
 
+def _transcript_file(arguments: argparse.Namespace) -> Path | None:
+    if arguments.transcripts is not None:
+        return arguments.transcripts
+    default = arguments.assets / "transcripts.json"
+    return default if default.is_file() else None
+
+
 def _default_output_directory() -> Path:
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return Path("benchmarks") / f"hibiki-bf16-q8-{timestamp}"
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+def _progress(callback: Callable[[str], None] | None, message: str) -> None:
+    if callback is not None:
+        callback(message)
+
+
+def _log(message: str) -> None:
+    print(f"[hibiki-benchmark] {message}", flush=True)
 
 
 def _summarize_cases(cases: tuple[BenchmarkCase, ...]) -> dict[str, dict[str, float | int]]:
@@ -486,3 +721,25 @@ def _summarize_cases(cases: tuple[BenchmarkCase, ...]) -> dict[str, dict[str, fl
             "real_time_factor": processing_seconds / input_seconds if input_seconds else 0.0,
         }
     return summary
+
+
+def _summarize_comparisons(
+    comparisons: tuple[TranscriptComparison, ...],
+) -> dict[str, dict[str, float | int]]:
+    summary: dict[str, dict[str, float | int]] = {}
+    for variant in sorted({comparison.variant for comparison in comparisons}):
+        matching = [comparison for comparison in comparisons if comparison.variant == variant]
+        reference_words = sum(comparison.reference_words for comparison in matching)
+        word_errors = sum(comparison.word_errors for comparison in matching)
+        summary[variant] = {
+            "cases": len(matching),
+            "exact_matches": sum(comparison.exact_match for comparison in matching),
+            "reference_words": reference_words,
+            "word_errors": word_errors,
+            "word_error_rate": word_errors / max(reference_words, 1),
+        }
+    return summary
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

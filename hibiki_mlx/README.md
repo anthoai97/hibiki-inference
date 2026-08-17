@@ -53,7 +53,9 @@ Benchmark every WAV below `assets/` with clean BF16 and Q8 worker processes.
 Each model is loaded and warmed once, then each input uses a fresh inference
 session. The command writes per-file and aggregate timing, real-time-factor,
 transcript, and MLX-memory measurements to JSON and CSV; it does not write
-generated audio.
+generated audio. When `assets/transcripts.json` exists (or is supplied with
+`--transcripts`), it also writes `accuracy.csv` with word-error rate for both
+models against that external English reference.
 
 ```shell
 conda run -n hibiki python -m hibiki_mlx.benchmark \
@@ -64,6 +66,9 @@ conda run -n hibiki python -m hibiki_mlx.benchmark \
 ```
 
 Omit `--output-dir` to create a timestamped directory under `benchmarks/`.
+The checked-in transcript manifest is Whisper large-v3 translation output, so
+the reported WER measures agreement with that reference—not human-verified
+translation quality.
 
 ## Tests
 

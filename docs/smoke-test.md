@@ -4,7 +4,7 @@ This document defines the shared verification contract for Hibiki inference engi
 
 Tests focus on the model loader and inference session interfaces. Model internals and implementation language may change without requiring the shared tests to change.
 
-For the expected inference flow, see [INFERENCE_ARCHITECT.md](./INFERENCE_ARCHITECT.md). Exact artifact, scheduling, parity, and performance contracts are recorded in [core-library.md](./core-library.md).
+For the expected inference flow, see [inference-architecture.md](./inference-architecture.md). Exact artifact, scheduling, parity, and performance contracts are recorded in [core-library.md](./core-library.md).
 
 ## What the test suites prove
 

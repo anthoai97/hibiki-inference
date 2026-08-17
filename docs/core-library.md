@@ -1,6 +1,6 @@
 # Hibiki 1B MLX inference: core implementation reference
 
-This document is the implementation context for an on-device inference library around `kyutai/hibiki-1b-mlx-bf16`. It records the released artifact contract, the streaming state machine, tensor shapes, and MLX-specific runtime constraints. It also calls out places where Kyutai's paper and public reference implementations do not agree. Treat those items as parity-test requirements, not as details to guess.
+This document is the implementation context for an on-device inference library around `kyutai/hibiki-1b-mlx-bf16`. It records the released artifact contract, the streaming state machine, tensor shapes, and MLX-specific runtime constraints. It also calls out places where Kyutai's paper and public reference implementations do not agree. Treat those items as parity-test requirements, not as details to guess. Confirmed public behavior and package constraints are summarized in [the Python package contract](./python-package.md).
 
 > **Project direction:** this repository reimplements inference directly with MLX. `moshi_mlx` and `moshi-swift` are read-only behavioral references, not runtime dependencies and not code to wrap, import, or copy blindly. A later iOS target will be a separate native MLX Swift implementation sharing the same artifact and inference contracts.
 
@@ -240,7 +240,7 @@ The public examples do not fully implement that protocol:
 - The Hibiki Rust example appends 12,000 zero samples (0.5 seconds) and then processes those frames, but it likewise does not explicitly inject EOS or sample until output EOS. ([Rust input padding](https://github.com/kyutai-labs/hibiki/blob/f1cf9293e35c1dceffbe60dd325bdd702bc8305e/hibiki-rs/src/gen.rs#L51-L64), [Rust loop](https://github.com/kyutai-labs/hibiki/blob/f1cf9293e35c1dceffbe60dd325bdd702bc8305e/hibiki-rs/src/gen.rs#L127-L168))
 - `LmConfig.audio_eos_token` aliases id 2047, which is also in the 2,048-way Mimi/depth output range; the examples do not demonstrate a reliable audio-EOS injection path. ([properties](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/models/lm.py#L140-L147), [depth output size](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/models/lm.py#L236-L250))
 
-Therefore `finish()` is an unresolved contract. Implement it behind explicit policy/configuration and validate it against an authoritative reference or golden audio/text before claiming paper-equivalent EOS behavior. At minimum, a fallback “silence tail + two-frame delay drain + maximum tail frames” policy must be observable and distinct from learned EOS completion.
+The checkpoint-specific learned EOS contract remains unresolved, so version one deliberately uses a different, named policy. `finish()` zero-pads one non-empty partial source frame, advances exactly six further silent frames, returns only target rows complete across all eight codebooks, and discards and counts the newest two incomplete delayed rows. A repeated call returns no duplicate output and reports `already_finished`. This is a deterministic package contract, not paper-equivalent EOS behavior and not an exact copy of any one public runner; the reference comparison is recorded in [the finalization research note](./research/finalization-reference-behavior.md).
 
 ## MLX runtime implications
 
@@ -266,7 +266,7 @@ For BF16 Temporal KV, the theoretical storage per logical batch item per frame i
 16 layers × 2 (K,V) × 16 heads × 128 head_dim × 2 bytes = 131,072 bytes/frame
 ```
 
-That is about 64 MiB for 500 frames and 512 MiB at the reference cache's 4,096-frame capacity. True CFG uses physical batch `2B`, so it doubles those numbers. The current rotating cache grows toward 4,096 even though attention uses only the latest 500 positions; a custom cache bounded near the actual local context could save substantial memory, but must preserve absolute RoPE offsets and pass long-stream parity tests. The dimensions and cache layout follow directly from the model config and `[B, heads, time, head_dim]` cache allocation. ([cache layout](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/modules/kv_cache.py#L88-L147), [head dimension](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/modules/transformer.py#L13-L40))
+That is about 64 MiB for 500 frames and 512 MiB at the reference cache's 4,096-frame capacity. True CFG uses physical batch `2B`, so it doubles those numbers. Version one instead allocates a 512-position rotating cache, attends to the latest 500 positions, and preserves absolute RoPE offsets across wraps. This choice must pass the 120-second, 1,500-frame parity and bounded-memory test. The dimensions and cache layout follow directly from the model config and `[B, heads, time, head_dim]` cache allocation. ([cache layout](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/modules/kv_cache.py#L88-L147), [head dimension](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/modules/transformer.py#L13-L40))
 
 Apple silicon uses unified memory for MLX arrays, so model weights, caches, and working buffers compete with the application and OS in one pool. Unified memory removes explicit MLX CPU/GPU copies, but it does not remove conversion/copy costs between Candle/NumPy and MLX in the reference CPU-codec pipeline. ([official unified-memory guide](https://github.com/ml-explore/mlx/blob/9a795735ad9a42664e08f42361b405ed570bcf1a/docs/src/usage/unified_memory.rst#L3-L32))
 
@@ -280,7 +280,7 @@ MLX `nn.quantize` replaces eligible Linear and Embedding leaves in place. If thi
 
 Distinguish four latency classes:
 
-1. **Frame deadline:** the full steady-state pipeline must average and tail below 80 ms per frame.
+1. **Frame deadline:** warm end-to-end frame time must have p95 at or below 80 ms on the M1 Pro reference machine; report the maximum separately rather than failing on one isolated spike.
 2. **Scheduler latency:** target acoustic levels add two frames (160 ms) before a complete output frame is decodable.
 3. **Codec receptive-field/startup latency:** causal codec internals may require warmup before each input call produces a frame.
 4. **Learned translation lag:** the model waits for linguistic context; this is seconds and is measured separately with End Offset/LAAL.
@@ -325,25 +325,25 @@ Before treating the core as production-ready, cover these invariants:
 - assert every boundary shape/dtype in the tensor table, including batch `B>1` if supported;
 - verify the exact delay schedule on synthetic token ids and confirm no output audio for the first two steps;
 - verify `text_frame_index=t` and `audio_frame_index=t-2`;
-- show chunked Mimi encode/decode parity with the selected reference backend within an explicit tolerance;
+- show chunked Mimi encode/decode parity with the selected reference runtime within an explicit tolerance;
 - show reset determinism: a reset session with the same seed/input matches a fresh session;
 - show independent sessions do not share KV, codec, or RNG state;
 - test `gamma=1` parity and require distinct positive/negative logits before accepting `gamma>1`;
 - compare the public-runner and paper sampling profiles on fixed fixtures;
-- test non-multiple-of-1,920 PCM input and every supported `finish()` policy;
-- run at least 120 seconds (the stated training length), across the 500-frame context boundary, and separately across cache wraparound if 4,096-frame sessions are supported;
-- benchmark warm p95/max frame time below the selected hardware's 80 ms deadline and assert bounded queues/memory.
+- test non-multiple-of-1,920 PCM input and the fixed six-frame silence-tail `finish()` policy, including repeated finish;
+- run exactly 120 seconds (the stated version-one limit), across the 500-frame context boundary and repeated wraps of the 512-position cache;
+- benchmark warm p95 at or below the M1 Pro's 80 ms deadline, real-time factor at or below 1.0, and bounded queues/memory; report maximum frame time without using a single spike as the sole failure condition.
 
-Golden integration fixtures should record artifact revision, implementation revision, seed, sampling profile, CFG behavior, PCM normalization, tail policy, and hashes of input/output tokens. Audio waveform equality across backends may be too strict; token equality and bounded PCM error should be separate assertions.
+Parity integration fixtures should record artifact revision, implementation revision, seed, sampling profile, CFG behavior, PCM normalization, tail policy, and hashes of input/output tokens. Audio waveform equality across runtimes may be too strict; token equality and bounded PCM error should be separate assertions.
 
-## Known gaps and decisions still required
+## Known gaps and deferred work
 
 1. **CFG:** the paper and Hibiki Rust path use `very_good` versus `very_bad`; the public MLX path appears to duplicate `very_good`. True MLX CFG needs implementation plus parity tests.
-2. **EOS/finalization:** the paper specifies input/output EOS, while the public MLX and Rust examples use finite frame loops. The exact source EOS id and drain policy are not demonstrated end to end.
+2. **Learned EOS:** the paper specifies input/output EOS, while the public MLX and Rust examples use finite frame loops. Version one uses the fixed silence-tail policy above; the exact source EOS id and learned stopping behavior still require checkpoint-specific evidence.
 3. **Audio EOS id:** current generic MLX config exposes 2047 as audio EOS, but 2047 is also in the emitted 2,048-way audio range. Do not rely on it without checkpoint-specific evidence.
-4. **Long-session cache:** attention is 500 frames, storage capacity is 4,096 frames, current source flags rotating-cache trimming, and training examples are stated to be at most 120 seconds. Define the supported session duration and test its boundary.
+4. **Long-session cache evidence:** version one supports exactly 120 seconds with 512 allocated positions and a 500-frame attention window. The implementation must still prove absolute-position correctness and bounded memory across repeated cache wraps.
 5. **Codec parity:** the project target is a local all-MLX Mimi. It needs token, PCM, reset, and streaming-state parity tests against the pinned artifacts and historical references. A later native Swift implementation needs its own parity and performance measurements.
-6. **Reference drift:** upstream Python and Swift revisions are pinned only for study. Pin this project's direct MLX, MLX Swift, artifact, and conversion versions independently rather than inheriting upstream package constraints.
+6. **Reference drift:** upstream Python and Swift revisions are pinned only for study. The Python package targets MLX 0.32 and the pinned BF16 bundle independently; a future Swift implementation must choose and verify its own native MLX and conversion versions.
 7. **Quantization:** this artifact is BF16. Any lower-bit on-device variant needs an explicitly versioned conversion and quality/performance validation.
 
 These gaps do not block a faithful frame-by-frame BF16 prototype with CFG disabled and an explicit silence-tail policy. They do block claiming paper-equivalent CFG, EOS completion, or unlimited live-stream behavior.

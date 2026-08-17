@@ -1,0 +1,65 @@
+# Hibiki Inference
+
+This context describes the language used for on-device Hibiki 1B speech-to-speech translation. It keeps artifact provenance, model time, streaming input, and generated output distinct.
+
+## Artifacts and evidence
+
+**Artifact bundle**:
+The configuration, Hibiki weights, Mimi weights, and SentencePiece model from one model revision, treated as one verified unit.
+_Avoid_: Model folder, checkpoint, weights (when referring to the complete unit)
+
+**Reference runtime**:
+A pinned historical Hibiki or Moshi implementation used to study behavior and create independent parity evidence. It is not part of production inference.
+_Avoid_: Dependency, backend
+
+**Parity fixture**:
+A small, versioned expected result produced independently from the implementation under test. Token fixtures are exact; PCM fixtures carry an explicit numeric tolerance.
+_Avoid_: Smoke output, reference audio
+
+**Reference audio**:
+A checked-in Hibiki WAV used for listening comparison. It is not a waveform-exact parity fixture.
+_Avoid_: Golden audio
+
+## Streaming translation
+
+**PCM chunk**:
+An arbitrary-length piece of caller-supplied mono audio. A chunk does not need to align with the model clock.
+_Avoid_: Frame
+
+**Source frame**:
+Exactly 1,920 samples of 24 kHz mono PCM, representing 80 ms on the model timeline.
+_Avoid_: Chunk, packet
+
+**Generation step**:
+One advancement of Hibiki after Mimi has emitted a complete source-token frame.
+_Avoid_: Callback, chunk
+
+**Text frame**:
+The zero-based model-timeline position of a sampled text token. Text frame `t` belongs to generation step `t`.
+_Avoid_: Audio frame
+
+**Target audio frame**:
+The zero-based model-timeline position shared by eight generated target-audio codebooks. Because seven codebooks are delayed, target audio frame `t` normally becomes complete at generation step `t+2`.
+_Avoid_: Output step, text frame
+
+**Complete audio frame**:
+A target audio frame for which all eight codebook tokens are available and may be decoded to PCM.
+_Avoid_: Partial frame
+
+**Silence-tail finalization**:
+The explicit fallback policy used to finish a session while checkpoint-specific learned EOS behavior remains unverified.
+_Avoid_: Learned EOS, EOS completion
+
+## Runtime ownership
+
+**Loaded model**:
+The immutable Hibiki and Mimi architecture and parameters shared across translation runs.
+_Avoid_: Session
+
+**Inference session**:
+One mutable streaming translation run, including codec state, model caches, delayed tokens, text state, random state, counters, and lifecycle state.
+_Avoid_: Loaded model, engine
+
+**Model time**:
+The semantic time of a text or target audio frame, calculated from its frame index and the 80 ms model clock.
+_Avoid_: Processing time, wall-clock latency

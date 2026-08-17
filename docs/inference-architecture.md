@@ -1,6 +1,6 @@
 # Hibiki 1B MLX inference architecture
 
-This document gives a high-level view of the inference flow. Exact model settings, tensor shapes, token ids, and source references live in [the core reference](./core-library.md).
+This document gives a high-level view of the inference flow. Exact model settings, tensor shapes, token ids, and source references live in [the core reference](./core-library.md). The confirmed version-one package and session behavior lives in [the Python package contract](./python-package.md).
 
 This project is a clean MLX reimplementation. It loads the released Hibiki and Mimi weights directly and does **not** import, wrap, or depend on `moshi_mlx`. Upstream Moshi code is used only to understand expected behavior and build compatibility tests.
 
@@ -64,7 +64,7 @@ The model processes 17 synchronized streams:
 8 supplied French audio streams
 ```
 
-The first audio codebook has no delay; the remaining seven are delayed by two frames. Text produced at step `t` belongs to step `t`, while the complete audio returned during that call normally belongs to step `t-2`.
+The first audio codebook has no delay; the remaining seven are delayed by two frames. Text produced at step `t` belongs to zero-based text frame `t`, while the complete audio returned during that call normally belongs to audio frame `t-2`. Model time is the frame index multiplied by 80 ms; it is distinct from the later wall-clock time at which delayed audio becomes available.
 
 ## Session state
 
@@ -92,13 +92,13 @@ Start session
 Push PCM chunks ──► produce text and audio
         │
         ▼
-Finish and drain delayed audio
+Finish with the explicit silence tail
         │
         ▼
 Reset or close
 ```
 
-PCM chunks may have any length; the session buffers them into 1,920-sample frames internally. Model loading, downloads, and cold compilation happen before streaming begins.
+PCM chunks may have any length; the session buffers them into 1,920-sample frames internally. Model loading, downloads, and cold compilation happen before streaming begins. Version one pads a non-empty partial final frame, advances exactly six more silent frames, returns only complete delayed audio positions, and never describes this fallback as learned EOS completion.
 
 ## Runtime placement
 
@@ -134,4 +134,5 @@ A later iOS target should be a separate native MLX Swift implementation. It shou
 - Use an explicit silence tail to finish and drain output until learned EOS behavior is verified.
 - Treat 120 seconds as the initially supported session length.
 - Keep one active session per model instance.
-- Add quantization, batching, and an all-MLX codec only after the basic frame loop has parity and performance tests.
+- Keep the Temporal cache at 512 allocated positions while attending to the latest 500 and preserving absolute RoPE positions.
+- Build the local all-MLX Mimi codec as part of the first frame loop. Add quantization and batching only after that BF16 path has parity and performance evidence.

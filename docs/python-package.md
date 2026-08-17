@@ -5,7 +5,7 @@ This document records the version-one package and session choices confirmed for 
 ## Package scope
 
 - The project lives under `hibiki-mlx/`, installs as `hibiki-mlx`, and imports as `hibiki_mlx`.
-- Use `uv` for project and dependency management.
+- Run repository development commands in the Conda environment named `hibiki` and invoke `uv` from that environment; `uv` remains the package and dependency manager.
 - Support Python `>=3.13,<3.15`, Apple-silicon macOS 14 or newer, and `mlx>=0.32.0,<0.33`; lock MLX 0.32.0 for development, CI, fixtures, and performance reports.
 - License the project code under Apache 2.0. Keep the downloaded model under CC-BY 4.0 and include its attribution in a package `NOTICE`.
 - Do not bundle the roughly 4 GB artifact bundle in the Python distribution and do not publish the first version to PyPI.

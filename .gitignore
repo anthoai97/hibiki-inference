@@ -1,2 +1,13 @@
 .agents
 .claude
+
+# Downloaded model artifact bundles: ~4 GB, CC-BY 4.0, never redistributed here.
+artifacts/
+
+# Python build, environment, and tool caches.
+.venv/
+dist/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,5037 @@
+{
+ "config": {
+  "card": 2048,
+  "causal": true,
+  "conditioners": {
+   "description": {
+    "lut": {
+     "dim": 16,
+     "n_bins": 31,
+     "possible_values": [
+      "very_bad",
+      "bad",
+      "neutral",
+      "good",
+      "very_good"
+     ],
+     "tokenizer": "noop"
+    },
+    "type": "lut"
+   }
+  },
+  "context": 500,
+  "delays": [
+   0,
+   0,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   0,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2
+  ],
+  "dep_q": 8,
+  "depformer_causal": true,
+  "depformer_context": 16,
+  "depformer_dim": 1024,
+  "depformer_dim_feedforward": 4224,
+  "depformer_gating": "silu",
+  "depformer_layer_scale": null,
+  "depformer_max_period": 10000,
+  "depformer_multi_linear": true,
+  "depformer_num_heads": 16,
+  "depformer_num_layers": 6,
+  "depformer_pos_emb": "none",
+  "depformer_weights_per_step": true,
+  "dim": 2048,
+  "existing_text_padding_id": 3,
+  "fuser": {
+   "sum": [
+    "description"
+   ]
+  },
+  "gating": "silu",
+  "hidden_scale": 4.125,
+  "layer_scale": null,
+  "max_period": 100000,
+  "mimi_name": "mimi-dbaa9758@125.safetensors",
+  "moshi_name": "hibiki-mlx-dc2cf5a5@80.safetensors",
+  "n_q": 16,
+  "norm": "rms_norm_f32",
+  "num_heads": 16,
+  "num_layers": 16,
+  "positional_embedding": "rope",
+  "text_card": 48000,
+  "tokenizer_name": "tokenizer_spm_48k_multi6_2.model"
+ },
+ "source_revision": "b3d6291f3dcf7954e1a502e4d66f32e3556f17ae",
+ "weights": {
+  "lm": {
+   "audio_embs.0.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.1.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.10.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.11.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.12.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.13.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.14.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.15.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.2.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.3.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.4.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.5.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.6.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.7.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.8.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "audio_embs.9.weight": [
+    "BF16",
+    [
+     2049,
+     2048
+    ]
+   ],
+   "condition_provider.conditioners.description.embed.weight": [
+    "BF16",
+    [
+     32,
+     16
+    ]
+   ],
+   "condition_provider.conditioners.description.learnt_padding": [
+    "BF16",
+    [
+     1,
+     1,
+     2048
+    ]
+   ],
+   "condition_provider.conditioners.description.output_proj.weight": [
+    "BF16",
+    [
+     2048,
+     16
+    ]
+   ],
+   "depformer.slices.0.emb.weight": [
+    "BF16",
+    [
+     48001,
+     1024
+    ]
+   ],
+   "depformer.slices.0.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.0.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.0.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.1.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.1.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.1.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.1.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.2.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.2.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.2.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.2.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.3.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.3.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.3.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.3.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.4.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.4.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.4.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.4.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.5.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.5.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.5.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.5.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.6.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.6.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.6.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.6.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.7.emb.weight": [
+    "BF16",
+    [
+     2049,
+     1024
+    ]
+   ],
+   "depformer.slices.7.linear_in.weight": [
+    "BF16",
+    [
+     1024,
+     2048
+    ]
+   ],
+   "depformer.slices.7.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     5632,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     1024,
+     2816
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     3072,
+     1024
+    ]
+   ],
+   "depformer.slices.7.transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     1024,
+     1024
+    ]
+   ],
+   "out_norm.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "text_emb.weight": [
+    "BF16",
+    [
+     48001,
+     2048
+    ]
+   ],
+   "text_linear.weight": [
+    "BF16",
+    [
+     48000,
+     2048
+    ]
+   ],
+   "transformer.layers.0.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.0.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.0.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.0.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.0.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.0.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.1.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.1.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.1.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.1.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.1.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.1.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.10.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.10.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.10.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.10.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.10.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.10.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.11.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.11.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.11.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.11.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.11.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.11.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.12.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.12.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.12.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.12.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.12.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.12.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.13.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.13.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.13.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.13.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.13.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.13.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.14.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.14.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.14.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.14.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.14.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.14.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.15.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.15.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.15.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.15.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.15.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.15.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.2.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.2.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.2.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.2.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.2.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.2.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.3.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.3.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.3.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.3.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.3.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.3.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.4.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.4.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.4.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.4.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.4.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.4.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.5.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.5.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.5.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.5.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.5.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.5.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.6.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.6.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.6.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.6.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.6.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.6.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.7.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.7.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.7.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.7.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.7.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.7.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.8.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.8.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.8.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.8.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.8.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.8.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ],
+   "transformer.layers.9.gating.linear_in.weight": [
+    "BF16",
+    [
+     11264,
+     2048
+    ]
+   ],
+   "transformer.layers.9.gating.linear_out.weight": [
+    "BF16",
+    [
+     2048,
+     5632
+    ]
+   ],
+   "transformer.layers.9.norm1.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.9.norm2.weight": [
+    "BF16",
+    [
+     2048
+    ]
+   ],
+   "transformer.layers.9.self_attn.in_proj.weight": [
+    "BF16",
+    [
+     6144,
+     2048
+    ]
+   ],
+   "transformer.layers.9.self_attn.out_proj.weight": [
+    "BF16",
+    [
+     2048,
+     2048
+    ]
+   ]
+  },
+  "mimi": {
+   "decoder.model.0.conv.conv.bias": [
+    "F32",
+    [
+     1024
+    ]
+   ],
+   "decoder.model.0.conv.conv.weight": [
+    "F32",
+    [
+     1024,
+     512,
+     7
+    ]
+   ],
+   "decoder.model.11.convtr.convtr.bias": [
+    "F32",
+    [
+     64
+    ]
+   ],
+   "decoder.model.11.convtr.convtr.weight": [
+    "F32",
+    [
+     128,
+     64,
+     8
+    ]
+   ],
+   "decoder.model.12.block.1.conv.conv.bias": [
+    "F32",
+    [
+     32
+    ]
+   ],
+   "decoder.model.12.block.1.conv.conv.weight": [
+    "F32",
+    [
+     32,
+     64,
+     3
+    ]
+   ],
+   "decoder.model.12.block.3.conv.conv.bias": [
+    "F32",
+    [
+     64
+    ]
+   ],
+   "decoder.model.12.block.3.conv.conv.weight": [
+    "F32",
+    [
+     64,
+     32,
+     1
+    ]
+   ],
+   "decoder.model.14.conv.conv.bias": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "decoder.model.14.conv.conv.weight": [
+    "F32",
+    [
+     1,
+     64,
+     3
+    ]
+   ],
+   "decoder.model.2.convtr.convtr.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder.model.2.convtr.convtr.weight": [
+    "F32",
+    [
+     1024,
+     512,
+     16
+    ]
+   ],
+   "decoder.model.3.block.1.conv.conv.bias": [
+    "F32",
+    [
+     256
+    ]
+   ],
+   "decoder.model.3.block.1.conv.conv.weight": [
+    "F32",
+    [
+     256,
+     512,
+     3
+    ]
+   ],
+   "decoder.model.3.block.3.conv.conv.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder.model.3.block.3.conv.conv.weight": [
+    "F32",
+    [
+     512,
+     256,
+     1
+    ]
+   ],
+   "decoder.model.5.convtr.convtr.bias": [
+    "F32",
+    [
+     256
+    ]
+   ],
+   "decoder.model.5.convtr.convtr.weight": [
+    "F32",
+    [
+     512,
+     256,
+     12
+    ]
+   ],
+   "decoder.model.6.block.1.conv.conv.bias": [
+    "F32",
+    [
+     128
+    ]
+   ],
+   "decoder.model.6.block.1.conv.conv.weight": [
+    "F32",
+    [
+     128,
+     256,
+     3
+    ]
+   ],
+   "decoder.model.6.block.3.conv.conv.bias": [
+    "F32",
+    [
+     256
+    ]
+   ],
+   "decoder.model.6.block.3.conv.conv.weight": [
+    "F32",
+    [
+     256,
+     128,
+     1
+    ]
+   ],
+   "decoder.model.8.convtr.convtr.bias": [
+    "F32",
+    [
+     128
+    ]
+   ],
+   "decoder.model.8.convtr.convtr.weight": [
+    "F32",
+    [
+     256,
+     128,
+     10
+    ]
+   ],
+   "decoder.model.9.block.1.conv.conv.bias": [
+    "F32",
+    [
+     64
+    ]
+   ],
+   "decoder.model.9.block.1.conv.conv.weight": [
+    "F32",
+    [
+     64,
+     128,
+     3
+    ]
+   ],
+   "decoder.model.9.block.3.conv.conv.bias": [
+    "F32",
+    [
+     128
+    ]
+   ],
+   "decoder.model.9.block.3.conv.conv.weight": [
+    "F32",
+    [
+     128,
+     64,
+     1
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.0.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.1.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.2.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.3.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.4.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.5.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.6.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "decoder_transformer.transformer.layers.7.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "downsample.conv.conv.conv.weight": [
+    "F32",
+    [
+     512,
+     512,
+     4
+    ]
+   ],
+   "encoder.model.0.conv.conv.bias": [
+    "F32",
+    [
+     64
+    ]
+   ],
+   "encoder.model.0.conv.conv.weight": [
+    "F32",
+    [
+     64,
+     1,
+     7
+    ]
+   ],
+   "encoder.model.1.block.1.conv.conv.bias": [
+    "F32",
+    [
+     32
+    ]
+   ],
+   "encoder.model.1.block.1.conv.conv.weight": [
+    "F32",
+    [
+     32,
+     64,
+     3
+    ]
+   ],
+   "encoder.model.1.block.3.conv.conv.bias": [
+    "F32",
+    [
+     64
+    ]
+   ],
+   "encoder.model.1.block.3.conv.conv.weight": [
+    "F32",
+    [
+     64,
+     32,
+     1
+    ]
+   ],
+   "encoder.model.10.block.1.conv.conv.bias": [
+    "F32",
+    [
+     256
+    ]
+   ],
+   "encoder.model.10.block.1.conv.conv.weight": [
+    "F32",
+    [
+     256,
+     512,
+     3
+    ]
+   ],
+   "encoder.model.10.block.3.conv.conv.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder.model.10.block.3.conv.conv.weight": [
+    "F32",
+    [
+     512,
+     256,
+     1
+    ]
+   ],
+   "encoder.model.12.conv.conv.bias": [
+    "F32",
+    [
+     1024
+    ]
+   ],
+   "encoder.model.12.conv.conv.weight": [
+    "F32",
+    [
+     1024,
+     512,
+     16
+    ]
+   ],
+   "encoder.model.14.conv.conv.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder.model.14.conv.conv.weight": [
+    "F32",
+    [
+     512,
+     1024,
+     3
+    ]
+   ],
+   "encoder.model.3.conv.conv.bias": [
+    "F32",
+    [
+     128
+    ]
+   ],
+   "encoder.model.3.conv.conv.weight": [
+    "F32",
+    [
+     128,
+     64,
+     8
+    ]
+   ],
+   "encoder.model.4.block.1.conv.conv.bias": [
+    "F32",
+    [
+     64
+    ]
+   ],
+   "encoder.model.4.block.1.conv.conv.weight": [
+    "F32",
+    [
+     64,
+     128,
+     3
+    ]
+   ],
+   "encoder.model.4.block.3.conv.conv.bias": [
+    "F32",
+    [
+     128
+    ]
+   ],
+   "encoder.model.4.block.3.conv.conv.weight": [
+    "F32",
+    [
+     128,
+     64,
+     1
+    ]
+   ],
+   "encoder.model.6.conv.conv.bias": [
+    "F32",
+    [
+     256
+    ]
+   ],
+   "encoder.model.6.conv.conv.weight": [
+    "F32",
+    [
+     256,
+     128,
+     10
+    ]
+   ],
+   "encoder.model.7.block.1.conv.conv.bias": [
+    "F32",
+    [
+     128
+    ]
+   ],
+   "encoder.model.7.block.1.conv.conv.weight": [
+    "F32",
+    [
+     128,
+     256,
+     3
+    ]
+   ],
+   "encoder.model.7.block.3.conv.conv.bias": [
+    "F32",
+    [
+     256
+    ]
+   ],
+   "encoder.model.7.block.3.conv.conv.weight": [
+    "F32",
+    [
+     256,
+     128,
+     1
+    ]
+   ],
+   "encoder.model.9.conv.conv.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder.model.9.conv.conv.weight": [
+    "F32",
+    [
+     512,
+     256,
+     12
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.0.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.1.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.2.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.3.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.4.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.5.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.6.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.layer_scale_1.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.layer_scale_2.scale": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.linear1.weight": [
+    "F32",
+    [
+     2048,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.linear2.weight": [
+    "F32",
+    [
+     512,
+     2048
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.norm1.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.norm1.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.norm2.bias": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.norm2.weight": [
+    "F32",
+    [
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.self_attn.in_proj_weight": [
+    "F32",
+    [
+     1536,
+     512
+    ]
+   ],
+   "encoder_transformer.transformer.layers.7.self_attn.out_proj.weight": [
+    "F32",
+    [
+     512,
+     512
+    ]
+   ],
+   "quantizer.rvq_first.input_proj.weight": [
+    "F32",
+    [
+     256,
+     512,
+     1
+    ]
+   ],
+   "quantizer.rvq_first.output_proj.weight": [
+    "F32",
+    [
+     512,
+     256,
+     1
+    ]
+   ],
+   "quantizer.rvq_first.vq.layers.0._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_first.vq.layers.0._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_first.vq.layers.0._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.input_proj.weight": [
+    "F32",
+    [
+     256,
+     512,
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.output_proj.weight": [
+    "F32",
+    [
+     512,
+     256,
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.0._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.0._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.0._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.1._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.1._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.1._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.10._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.10._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.10._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.11._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.11._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.11._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.12._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.12._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.12._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.13._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.13._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.13._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.14._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.14._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.14._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.15._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.15._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.15._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.16._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.16._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.16._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.17._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.17._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.17._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.18._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.18._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.18._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.19._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.19._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.19._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.2._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.2._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.2._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.20._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.20._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.20._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.21._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.21._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.21._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.22._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.22._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.22._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.23._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.23._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.23._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.24._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.24._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.24._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.25._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.25._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.25._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.26._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.26._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.26._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.27._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.27._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.27._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.28._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.28._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.28._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.29._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.29._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.29._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.3._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.3._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.3._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.30._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.30._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.30._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.4._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.4._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.4._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.5._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.5._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.5._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.6._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.6._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.6._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.7._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.7._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.7._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.8._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.8._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.8._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.9._codebook._initialized": [
+    "F32",
+    [
+     1
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.9._codebook.cluster_usage": [
+    "F32",
+    [
+     2048
+    ]
+   ],
+   "quantizer.rvq_rest.vq.layers.9._codebook.embedding_sum": [
+    "F32",
+    [
+     2048,
+     256
+    ]
+   ],
+   "upsample.convtr.convtr.convtr.weight": [
+    "F32",
+    [
+     512,
+     1,
+     4
+    ]
+   ]
+  }
+ }
+}

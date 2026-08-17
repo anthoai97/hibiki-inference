@@ -1,8 +1,5 @@
 """Streaming convolutions used by the Mimi codec.
 
-Adapted from `moshi_mlx.modules.conv` (Copyright (c) Kyutai, MIT licence). See
-../../NOTICE.
-
 MLX convolutions are NLC while the released weights and the codec's own tensor
 layout are NCL, so every layer here transposes on the way in and out.
 """

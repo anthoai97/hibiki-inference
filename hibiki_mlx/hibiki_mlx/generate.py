@@ -1,8 +1,5 @@
 """The delayed-stream schedule that drives one generation step at a time.
 
-Adapted from `moshi_mlx.models.generate` (Copyright (c) Kyutai, MIT licence).
-See ../NOTICE.
-
 Seven of the eight codebooks in each audio stream are delayed by two frames, so
 the tokens fed to the model at step ``t`` come from three different positions on
 the model timeline, and the audio that becomes complete at step ``t`` belongs to

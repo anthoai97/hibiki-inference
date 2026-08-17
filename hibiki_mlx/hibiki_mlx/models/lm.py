@@ -1,8 +1,5 @@
 """The Hibiki language model: Temporal Transformer plus Depth Transformer.
 
-Adapted from `moshi_mlx.models.lm` (Copyright (c) Kyutai, MIT licence). See
-../../NOTICE.
-
 The released ``hibiki-mlx-*.safetensors`` is already in MLX naming, so the
 parameter tree built here is the load contract: every name and shape must match
 the file exactly.

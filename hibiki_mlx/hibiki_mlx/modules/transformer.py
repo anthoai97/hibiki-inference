@@ -1,8 +1,5 @@
 """The Transformer stack shared by the Hibiki model and the Mimi codec.
 
-Adapted from `moshi_mlx.modules.transformer` (Copyright (c) Kyutai, MIT
-licence). See ../../NOTICE.
-
 Only the variants the released bundle uses are implemented: self-attention with
 optional RoPE, gated SiLU or plain GELU feed-forward, RMS or layer norm, and an
 optional layer scale. Cross-attention is not part of this artifact bundle.

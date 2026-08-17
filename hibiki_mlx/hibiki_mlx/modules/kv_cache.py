@@ -1,8 +1,5 @@
 """Key/value caches for the streaming attention layers.
 
-Adapted from `moshi_mlx.modules.kv_cache`, which in turn comes from mlx-examples
-(Copyright (c) 2023-2024 Apple Inc.). See ../../NOTICE.
-
 The caches are session state, not model parameters: nothing here is loaded from
 the artifact bundle.
 """

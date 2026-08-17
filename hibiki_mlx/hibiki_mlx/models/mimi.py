@@ -1,8 +1,5 @@
 """The Mimi codec: SEANet, streaming Transformers, and a split RVQ.
 
-Adapted from `moshi_mlx.models.mimi` (Copyright (c) Kyutai, MIT licence). See
-../../NOTICE.
-
 The bundle's ``config.json`` says nothing about the codec, so the architecture
 below is this implementation's explicit contract for
 ``mimi-dbaa9758@125.safetensors``. Unlike the Hibiki weights, that file is in

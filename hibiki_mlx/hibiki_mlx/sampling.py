@@ -1,8 +1,5 @@
 """Token sampling for the text and audio heads.
 
-Adapted from `moshi_mlx.utils.sampling`, which comes from mlx-examples
-(Copyright (c) 2023-2024 Apple Inc.). See ../NOTICE.
-
 Sampling draws on MLX's global random state, so a translation is reproducible
 only for a fixed seed and a fixed order of calls.
 """

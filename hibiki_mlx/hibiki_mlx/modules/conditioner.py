@@ -1,8 +1,5 @@
 """The lookup-table conditioner that carries Hibiki's quality label.
 
-Adapted from `moshi_mlx.modules.conditioner` (Copyright (c) Kyutai, MIT
-licence). See ../../NOTICE.
-
 The released bundle declares one ``description`` conditioner whose value is a
 label such as ``very_good``. Its projected embedding is added at every time
 step, so the same tensor is reused for a whole session.

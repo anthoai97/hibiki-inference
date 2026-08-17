@@ -1,8 +1,5 @@
 """The split residual vector quantizer at the centre of the Mimi codec.
 
-Adapted from `moshi_mlx.modules.quantization` (Copyright (c) Kyutai, MIT
-licence). See ../../NOTICE.
-
 The released codebooks are stored as an unnormalised ``embedding_sum`` and a
 ``cluster_usage`` count rather than as centroids, so the usable embedding is
 derived after the weights are loaded.

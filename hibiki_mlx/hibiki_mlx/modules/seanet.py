@@ -1,7 +1,5 @@
 """The SEANet encoder and decoder that surround the Mimi Transformers.
 
-Adapted from `moshi_mlx.modules.seanet` (Copyright (c) Kyutai, MIT licence).
-See ../../NOTICE.
 """
 
 from __future__ import annotations

@@ -11,6 +11,7 @@ it can report how far ahead of real time the run stayed.
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 from pathlib import Path
 

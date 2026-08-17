@@ -20,11 +20,15 @@ download_model()
 ```shell
 conda run -n hibiki python -m hibiki_mlx french.wav english.wav   # translate a file
 conda run -n hibiki python -m hibiki_mlx --play french.wav        # play as it translates
+conda run -n hibiki python -m hibiki_mlx --metrics french.wav     # monitor each step
 ```
 
 The command prints English text as it is decoded and writes the translated
 audio. Pass `--play` to stream decoded English audio to the default sound
 device. Input is decoded and resampled as needed.
+
+`--metrics` reports codec, generation, target-decoding, and text-decoding time
+for each generation step, along with MLX allocator memory and process peak RSS.
 
 ## Tests
 

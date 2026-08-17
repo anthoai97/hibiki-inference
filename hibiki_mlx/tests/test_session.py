@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from hibiki_mlx.session import StepResult
+from hibiki_mlx.session import StepResult, StepTiming
 
 # 12.5 frames per second, the released codec's clock.
 FRAME = 1 / 12.5
@@ -46,3 +46,20 @@ class ModelTimeTests(unittest.TestCase):
 
         self.assertAlmostEqual(step.text_time, 0.4)
         self.assertAlmostEqual(step.audio_time, 0.32)
+
+
+class StepTimingTests(unittest.TestCase):
+    def test_keeps_the_individual_inference_phases_separate(self) -> None:
+        timing = StepTiming(
+            source_encode_seconds=0.002,
+            generation_seconds=0.003,
+            target_decode_seconds=0.004,
+            text_decode_seconds=0.001,
+            total_seconds=0.01,
+        )
+
+        self.assertEqual(timing.source_encode_seconds, 0.002)
+        self.assertEqual(timing.generation_seconds, 0.003)
+        self.assertEqual(timing.target_decode_seconds, 0.004)
+        self.assertEqual(timing.text_decode_seconds, 0.001)
+        self.assertEqual(timing.total_seconds, 0.01)

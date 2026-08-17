@@ -15,6 +15,7 @@ are synchronous.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
 import mlx.core as mx
@@ -37,6 +38,17 @@ SILENCE_TAIL_FRAMES = 6
 
 
 @dataclass(frozen=True)
+class StepTiming:
+    """Wall-clock time spent in each part of one generation step."""
+
+    source_encode_seconds: float
+    generation_seconds: float
+    target_decode_seconds: float
+    text_decode_seconds: float
+    total_seconds: float
+
+
+@dataclass(frozen=True)
 class StepResult:
     """What one generation step produced."""
 
@@ -46,6 +58,7 @@ class StepResult:
     audio_frame_index: int | None
     pcm: np.ndarray | None
     seconds_per_frame: float
+    timing: StepTiming | None = None
 
     @property
     def text_time(self) -> float:
@@ -70,11 +83,13 @@ class InferenceSession:
         condition: str | None = DEFAULT_CONDITION,
         text_sampler: Sampler = DEFAULT_TEXT_SAMPLER,
         audio_sampler: Sampler = DEFAULT_AUDIO_SAMPLER,
+        measure_timing: bool = False,
     ):
         self.model = model
         self.mimi = model.mimi
         self.frame_size = model.mimi.cfg.frame_size
         self.seconds_per_frame = 1.0 / model.mimi.cfg.frame_rate
+        self.measure_timing = measure_timing
         self.generator = LmGen(model.lm, text_sampler, audio_sampler)
         # Both the tokenizer and the no-text id come from the same bundle, so
         # text ids cannot be paired with weights from another revision.
@@ -164,28 +179,69 @@ class InferenceSession:
 
     def _step_frame(self, frame: np.ndarray) -> list[StepResult]:
         """Encode one source frame and run every generation step it yields."""
+        started = time.perf_counter() if self.measure_timing else None
         codes = self.mimi.encode_step(mx.array(frame)[None, None, :], self._encoder_cache)
-        return [self._generate(codes[:, :, index]) for index in range(codes.shape[-1])]
+        source_encode_seconds = (
+            (time.perf_counter() - started) / codes.shape[-1] if started is not None else None
+        )
+        return [
+            self._generate(codes[:, :, index], source_encode_seconds)
+            for index in range(codes.shape[-1])
+        ]
 
-    def _generate(self, source_tokens: mx.array) -> StepResult:
+    def _generate(
+        self, source_tokens: mx.array, source_encode_seconds: float | None = None
+    ) -> StepResult:
         text_frame_index = self.generator.text_frame_index
+        started = time.perf_counter() if source_encode_seconds is not None else None
         text_token = self.generator.step(source_tokens.astype(mx.int32), self.condition)
         audio_tokens = self.generator.last_audio_tokens()
+        if started is not None:
+            if audio_tokens is None:
+                mx.eval(text_token)
+            else:
+                mx.eval(text_token, audio_tokens)
+            generation_seconds = time.perf_counter() - started
 
         pcm = None
         audio_frame_index = None
+        decode_started = time.perf_counter() if started is not None else None
         if audio_tokens is not None:
             audio_frame_index = self.generator.audio_frame_index
             decoded = self.mimi.decode_step(audio_tokens[:, :, None], self._decoder_cache)
             mx.eval(decoded)
             pcm = np.array(decoded[0, 0], dtype=np.float32)
+        target_decode_seconds = (
+            time.perf_counter() - decode_started if decode_started is not None else None
+        )
 
+        text_started = time.perf_counter() if started is not None else None
         token = int(text_token.squeeze().item())
+        text = self.text_decoder.push(token)
+        text_decode_seconds = time.perf_counter() - text_started if text_started is not None else None
+        timing = None
+        if source_encode_seconds is not None:
+            assert generation_seconds is not None
+            assert target_decode_seconds is not None
+            assert text_decode_seconds is not None
+            timing = StepTiming(
+                source_encode_seconds=source_encode_seconds,
+                generation_seconds=generation_seconds,
+                target_decode_seconds=target_decode_seconds,
+                text_decode_seconds=text_decode_seconds,
+                total_seconds=(
+                    source_encode_seconds
+                    + generation_seconds
+                    + target_decode_seconds
+                    + text_decode_seconds
+                ),
+            )
         return StepResult(
             text_frame_index=text_frame_index,
             text_token=token,
-            text=self.text_decoder.push(token),
+            text=text,
             audio_frame_index=audio_frame_index,
             pcm=pcm,
             seconds_per_frame=self.seconds_per_frame,
+            timing=timing,
         )

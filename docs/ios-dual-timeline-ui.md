@@ -1,5 +1,7 @@
 # iOS dual-timeline UI: implementation specification
 
+> **Later UI direction — not prototype scope.** The first Hibiki Edge prototype uses one simple screen with runtime model-download status, bundled source-audio selection, Play French, Translate, inference progress, an English transcript, and Play English. Do not treat the dual-timeline, live mode, or their supporting interaction states below as requirements for that prototype.
+
 This document is the implementation context for the iOS demo screen of on-device Hibiki 1B translation. It specifies one screen, the **dual timeline**, in two input modes.
 
 It is a UI contract only. Artifact loading, the streaming schedule, cache ownership, sampling, and finalization are specified in [the core implementation reference](./core-library.md); this document never restates them. Domain terms are defined in [`CONTEXT.md`](../CONTEXT.md) and are used here exactly as written there — in particular **source frame**, **generation step**, **text frame**, **target audio frame**, **complete audio frame**, **inference session**, and **model time**.

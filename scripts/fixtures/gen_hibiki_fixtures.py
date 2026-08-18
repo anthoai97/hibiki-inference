@@ -24,12 +24,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import math
+
 import mlx.core as mx
 import sentencepiece
 from mlx.utils import tree_map
 
 from hibiki_mlx.artifacts.quantization import QuantizationSpec, quantize_linear_layers
 from hibiki_mlx.models.lm import Lm, LmConfig
+from hibiki_mlx.models.mimi import Mimi, mimi_202407, remap_released_weights
 from hibiki_mlx.sampling import Sampler
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -40,6 +43,9 @@ FIXTURES = REPO_ROOT / "hibiki_mlx_swift/HibikiCore/Tests/HibikiCoreTests/Fixtur
 TEXT_TOKEN = 3
 AUDIO_TOKENS = [(7 * i + 1) % 2048 for i in range(16)]
 CONDITION = "very_good"
+
+# Number of 80 ms source frames the Mimi round-trip fixture streams.
+MIMI_FRAMES = 8
 
 # Decode cases exercised by the Swift tokenizer parity test.
 DECODE_CASES = [
@@ -97,6 +103,57 @@ def sample_step_fixture(bundle_dir: Path, out_path: Path) -> None:
     print(f"wrote {out_path.name}: text_token={text_token.tolist()} audio={audio_tokens.squeeze(-1).tolist()}")
 
 
+def load_mimi_cpu_f32(bundle_dir: Path) -> tuple[Mimi, int]:
+    """Load one bundle's Mimi codec exactly as the Swift CPU path does."""
+    config = json.loads((bundle_dir / "config.json").read_text())
+    lm_config = LmConfig.from_config_dict(config)
+    codebooks = lm_config.target_codebooks
+    mimi = Mimi(mimi_202407(codebooks))
+    codec_weights, _ = remap_released_weights(mx.load(str(bundle_dir / config["mimi_name"])), codebooks=codebooks)
+    mimi.load_weights(list(codec_weights.items()), strict=True)
+    mimi.refresh_derived_state()
+    mx.eval(mimi.parameters())
+    return mimi, codebooks
+
+
+def mimi_fixture(bundle_dir: Path, out_path: Path) -> None:
+    mimi, _ = load_mimi_cpu_f32(bundle_dir)
+    frame_size = mimi.cfg.frame_size
+
+    # A fixed, deterministic 220 Hz tone, saved into the fixture so the Swift
+    # test streams identical samples.
+    total = MIMI_FRAMES * frame_size
+    samples = [0.1 * math.sin(2.0 * math.pi * 220.0 * i / mimi.cfg.sample_rate) for i in range(total)]
+    input_pcm = mx.array(samples, dtype=mx.float32).reshape(1, 1, total)
+
+    mimi.reset_state()
+    encoder_cache = mimi.make_encoder_cache()
+    codes = []
+    for index in range(MIMI_FRAMES):
+        frame = input_pcm[:, :, index * frame_size : (index + 1) * frame_size]
+        step = mimi.encode_step(frame, encoder_cache)
+        if step.shape[-1] > 0:
+            codes.append(step)
+    all_codes = mx.concatenate(codes, axis=-1)  # [1, nq, T]
+
+    decoder_cache = mimi.make_decoder_cache()
+    pcm = []
+    for index in range(all_codes.shape[-1]):
+        pcm.append(mimi.decode_step(all_codes[:, :, index : index + 1], decoder_cache))
+    output_pcm = mx.concatenate(pcm, axis=-1)  # [1, 1, T']
+    mx.eval(all_codes, output_pcm)
+
+    mx.save_safetensors(
+        str(out_path),
+        {
+            "input_pcm": input_pcm,
+            "codes": all_codes.astype(mx.int32),
+            "output_pcm": output_pcm.astype(mx.float32),
+        },
+    )
+    print(f"wrote {out_path.name}: codes {all_codes.shape}, output_pcm {output_pcm.shape}")
+
+
 def tokenizer_fixture(bundle_dir: Path, out_path: Path) -> None:
     config = json.loads((bundle_dir / "config.json").read_text())
     sp = sentencepiece.SentencePieceProcessor(str(bundle_dir / config["tokenizer_name"]))
@@ -116,9 +173,11 @@ def main() -> None:
             print(f"skipping {tag}: {bundle_dir} not present")
             continue
         sample_step_fixture(bundle_dir, FIXTURES / f"sample_step_{tag}.safetensors")
-    # The tokenizer is shared across bundles; take it from whichever is present.
+    # The Mimi codec and tokenizer are shared across bundles; take them from
+    # whichever bundle is present.
     for bundle_dir in bundles.values():
         if (bundle_dir / "config.json").exists():
+            mimi_fixture(bundle_dir, FIXTURES / "mimi_roundtrip.safetensors")
             tokenizer_fixture(bundle_dir, FIXTURES / "tokenizer_decode.json")
             break
 

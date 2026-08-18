@@ -74,7 +74,7 @@ final class Attention: Module {
 }
 
 /// Gated SiLU feed-forward whose two branches share one input projection.
-final class MlpGating: Module {
+final class MlpGating: Module, UnaryLayer {
     @ModuleInfo(key: "linear_in") var linearIn: Linear
     @ModuleInfo(key: "linear_out") var linearOut: Linear
 
@@ -95,24 +95,72 @@ final class MlpGating: Module {
     }
 }
 
+/// The plain GELU feed-forward used by the Mimi Transformers.
+final class MlpNoGating: Module, UnaryLayer {
+    @ModuleInfo var linear1: Linear
+    @ModuleInfo var linear2: Linear
+
+    init(_ cfg: TransformerConfig) {
+        self._linear1.wrappedValue = Linear(cfg.dModel, cfg.dimFeedforward, bias: false)
+        self._linear2.wrappedValue = Linear(cfg.dimFeedforward, cfg.dModel, bias: false)
+        super.init()
+    }
+
+    func callAsFunction(_ xs: MLXArray) -> MLXArray {
+        linear2(geluApproximate(linear1(xs)))
+    }
+}
+
+/// A learnable per-channel scale applied to a residual branch (Mimi only).
+final class LayerScale: Module, UnaryLayer {
+    @ParameterInfo(key: "scale") var scale: MLXArray
+
+    init(_ dModel: Int, initValue: Float) {
+        self._scale.wrappedValue = MLXArray.ones([dModel]) * initValue
+        super.init()
+    }
+
+    func callAsFunction(_ xs: MLXArray) -> MLXArray { xs * scale }
+}
+
+/// The norm the config selects: RMS norm for Hibiki, layer norm for Mimi.
+private func makeNorm(_ cfg: TransformerConfig) -> UnaryLayer {
+    switch cfg.norm {
+    case "layer_norm": return LayerNorm(dimensions: cfg.dModel, eps: 1e-5)
+    default: return RMSNorm(dimensions: cfg.dModel, eps: 1e-8) // rms_norm / rms_norm_f32
+    }
+}
+
 final class TransformerLayer: Module {
     @ModuleInfo(key: "self_attn") var selfAttn: Attention
-    @ModuleInfo var gating: MlpGating
-    @ModuleInfo var norm1: RMSNorm
-    @ModuleInfo var norm2: RMSNorm
+    @ModuleInfo var gating: UnaryLayer
+    @ModuleInfo var norm1: UnaryLayer
+    @ModuleInfo var norm2: UnaryLayer
+    @ModuleInfo(key: "layer_scale_1") var layerScale1: LayerScale?
+    @ModuleInfo(key: "layer_scale_2") var layerScale2: LayerScale?
 
     init(_ cfg: TransformerConfig) {
         self._selfAttn.wrappedValue = Attention(cfg)
-        self._gating.wrappedValue = MlpGating(cfg)
-        self._norm1.wrappedValue = RMSNorm(dimensions: cfg.dModel, eps: 1e-8)
-        self._norm2.wrappedValue = RMSNorm(dimensions: cfg.dModel, eps: 1e-8)
+        self._gating.wrappedValue = cfg.gating ? MlpGating(cfg) : MlpNoGating(cfg)
+        self._norm1.wrappedValue = makeNorm(cfg)
+        self._norm2.wrappedValue = makeNorm(cfg)
+        if let scale = cfg.layerScale {
+            self._layerScale1.wrappedValue = LayerScale(cfg.dModel, initValue: scale)
+            self._layerScale2.wrappedValue = LayerScale(cfg.dModel, initValue: scale)
+        } else {
+            self._layerScale1.wrappedValue = nil
+            self._layerScale2.wrappedValue = nil
+        }
         super.init()
     }
 
     func callAsFunction(_ xs: MLXArray, cache: KVCache) -> MLXArray {
-        var xs = xs + selfAttn(norm1(xs), cache: cache)
-        xs = xs + gating(norm2(xs))
-        return xs
+        var attn = selfAttn(norm1(xs), cache: cache)
+        if let layerScale1 { attn = layerScale1(attn) }
+        let xs = xs + attn
+        var ff = gating(norm2(xs))
+        if let layerScale2 { ff = layerScale2(ff) }
+        return xs + ff
     }
 }
 
@@ -135,4 +183,38 @@ public final class Transformer: Module {
     }
 
     func makeCache() -> [KVCache] { layers.map { _ in KVCache() } }
+}
+
+/// A Transformer with optional input/output projections, used by the Mimi codec.
+///
+/// The Mimi Transformers run at the SEANet dimension, so both projections are
+/// absent from the released weights; `convLayout` swaps the codec's NCL tensors
+/// into the Transformer's NLC layout for the duration of the stack.
+public final class ProjectedTransformer: Module {
+    private let convLayout: Bool
+    @ModuleInfo var transformer: Transformer
+    @ModuleInfo(key: "input_proj") var inputProj: Linear?
+    @ModuleInfo(key: "output_projs") var outputProjs: [Linear?]
+
+    init(_ cfg: TransformerConfig, inputDim: Int, outputDims: [Int]) {
+        self.convLayout = cfg.convLayout
+        self._transformer.wrappedValue = Transformer(cfg)
+        self._inputProj.wrappedValue = inputDim == cfg.dModel ? nil : Linear(inputDim, cfg.dModel, bias: false)
+        self._outputProjs.wrappedValue = outputDims.map { dim in
+            dim == cfg.dModel ? nil : Linear(cfg.dModel, dim, bias: false)
+        }
+        super.init()
+    }
+
+    func callAsFunction(_ xs: MLXArray, caches: [KVCache]) -> [MLXArray] {
+        var xs = convLayout ? xs.swappedAxes(1, 2) : xs
+        if let inputProj { xs = inputProj(xs) }
+        xs = transformer(xs, caches: caches)
+        return outputProjs.map { proj in
+            let out = proj?(xs) ?? xs
+            return convLayout ? out.swappedAxes(1, 2) : out
+        }
+    }
+
+    func makeCache() -> [KVCache] { transformer.makeCache() }
 }

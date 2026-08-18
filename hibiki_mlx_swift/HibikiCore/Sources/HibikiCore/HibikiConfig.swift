@@ -28,6 +28,23 @@ public struct QuantizationSpec: Decodable, Equatable {
     public let groupSize: Int
 }
 
+/// A lookup-table conditioner declared by the bundle: a bin embedding projected
+/// to the model dimension and added at every time step. Hibiki uses one such
+/// conditioner ("description") to carry a quality label like `very_good`.
+public struct LutConditionerConfig: Decodable {
+    public let nBins: Int
+    public let dim: Int
+    public let tokenizer: String
+    public let possibleValues: [String]
+}
+
+/// One entry of the config's `conditioners` map. Only the `lut` type is used by
+/// the released bundle; `validate()` rejects anything else.
+public struct ConditionerConfig: Decodable {
+    public let type: String
+    public let lut: LutConditionerConfig?
+}
+
 /// The bundle's own `config.json`, decoded and checked against the
 /// contract this implementation supports. Mirrors `LmConfig.from_config_dict`
 /// in the Python reference: the released weights are already in MLX naming, so
@@ -69,6 +86,10 @@ public struct HibikiConfig: Decodable {
     public let depQ: Int
     public let delays: [Int]
 
+    /// Conditioners the model adds to its input, keyed by name. The released
+    /// bundle declares one "description" LUT conditioner.
+    public let conditioners: [String: ConditionerConfig]?
+
     /// Present when the LM Linear layers are quantized (e.g. the Q8 bundle).
     public let hibikiMlxQuantization: QuantizationSpec?
 
@@ -83,6 +104,8 @@ public struct HibikiConfig: Decodable {
     public var textOutVocabSize: Int { textCard }
     /// Audio embedding rows: the codebook cardinality plus one padding id.
     public var audioVocabSize: Int { card + 1 }
+    /// The audio padding id (the last audio embedding row).
+    public var audioPaddingToken: Int { audioVocabSize - 1 }
     /// Total audio streams the model models (source + target).
     public var audioCodebooks: Int { nQ }
     /// Target-audio codebooks the Depth Transformer samples.
@@ -91,6 +114,16 @@ public struct HibikiConfig: Decodable {
     public var sourceCodebooks: Int { nQ - depQ }
     /// Feed-forward width of the Temporal Transformer.
     public var dimFeedforward: Int { Int(hiddenScale * Double(dim)) }
+
+    /// The LUT conditioners to build, keyed by name (empty if the bundle
+    /// declares none). `validate()` has already rejected any unsupported entry.
+    public var lutConditioners: [String: LutConditionerConfig] {
+        var result: [String: LutConditionerConfig] = [:]
+        for (name, entry) in conditioners ?? [:] {
+            if let lut = entry.lut { result[name] = lut }
+        }
+        return result
+    }
 
     private static let supportedNorms = ["rms_norm", "rms_norm_f32"]
 
@@ -114,6 +147,17 @@ public struct HibikiConfig: Decodable {
             throw ModelLoadError.invalidConfig(
                 "the bundle generates \(targetCodebooks) audio codebooks but supplies "
                 + "\(sourceCodebooks), so one codec cannot serve both streams")
+        }
+        for (name, entry) in conditioners ?? [:] {
+            guard entry.type == "lut" else {
+                throw ModelLoadError.invalidConfig("unsupported conditioner type '\(entry.type)' for '\(name)'")
+            }
+            guard let lut = entry.lut else {
+                throw ModelLoadError.invalidConfig("conditioner '\(name)' is declared 'lut' but carries no lut block")
+            }
+            guard lut.tokenizer == "noop" else {
+                throw ModelLoadError.invalidConfig("unsupported conditioner tokenizer '\(lut.tokenizer)' for '\(name)'")
+            }
         }
     }
 

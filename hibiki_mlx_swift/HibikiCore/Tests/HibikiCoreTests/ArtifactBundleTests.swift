@@ -10,20 +10,11 @@ final class ArtifactBundleTests: XCTestCase {
     /// The real bundle location: `$HIBIKI_ARTIFACTS`, else the repo's
     /// `artifacts/hibiki-1b-mlx-bf16` relative to this test file.
     private var bundleDirectory: URL {
-        if let override = ProcessInfo.processInfo.environment["HIBIKI_ARTIFACTS"], !override.isEmpty {
-            return URL(fileURLWithPath: override)
-        }
-        var root = URL(fileURLWithPath: #filePath)
-        // .../HibikiCore/Tests/HibikiCoreTests/ArtifactBundleTests.swift -> repo root
-        for _ in 0..<5 { root.deleteLastPathComponent() }
-        return root.appendingPathComponent("artifacts/hibiki-1b-mlx-bf16", isDirectory: true)
+        MLXTestSupport.defaultBundleURL(fallback: "artifacts/hibiki-1b-mlx-bf16")
     }
 
     func testValidatesRealBundle() throws {
-        let configPath = bundleDirectory.appendingPathComponent("config.json").path
-        try XCTSkipUnless(
-            FileManager.default.fileExists(atPath: configPath),
-            "artifact bundle not present at \(bundleDirectory.path); download it first")
+        try MLXTestSupport.requireBundle(bundleDirectory)
 
         let bundle = try ArtifactBundle.validate(directory: bundleDirectory)
         XCTAssertEqual(bundle.config.dim, 2048)
@@ -48,8 +39,8 @@ final class ArtifactBundleTests: XCTestCase {
     func testShapeMismatchRejected() throws {
         // A config whose dim disagrees with the real weights must be rejected by
         // the shape check, not silently accepted.
+        try MLXTestSupport.requireBundle(bundleDirectory)
         let realConfig = bundleDirectory.appendingPathComponent("config.json").path
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: realConfig), "bundle absent")
 
         let scratch = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("hibiki-bad-\(UUID().uuidString)", isDirectory: true)

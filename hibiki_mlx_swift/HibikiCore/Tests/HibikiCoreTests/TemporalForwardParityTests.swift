@@ -14,24 +14,11 @@ final class TemporalForwardParityTests: XCTestCase {
         MLXTestSupport.forceCPUDevice()
     }
 
-    private func repoRoot() -> URL {
-        var root = URL(fileURLWithPath: #filePath)
-        for _ in 0..<5 { root.deleteLastPathComponent() }
-        return root
-    }
-
-    private func fixtureURL(_ name: String) -> URL {
-        URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/\(name)")
-    }
-
     private func runTemporalParity(bundleSubpath: String, fixtureName: String) throws {
-        let bundleDirectory = repoRoot().appendingPathComponent(bundleSubpath, isDirectory: true)
-        try XCTSkipUnless(
-            FileManager.default.fileExists(atPath: bundleDirectory.appendingPathComponent("config.json").path),
-            "artifact bundle not present at \(bundleDirectory.path); download it first")
+        let bundleDirectory = MLXTestSupport.bundleURL(bundleSubpath)
+        try MLXTestSupport.requireBundle(bundleDirectory)
 
-        let fixture = try loadArrays(url: fixtureURL(fixtureName))
+        let fixture = try loadArrays(url: MLXTestSupport.fixtureURL(fixtureName))
         let tokens = try XCTUnwrap(fixture["tokens"])
         let expectedOut = try XCTUnwrap(fixture["transformer_out"]).asType(.float32)
         let expectedArgmax = try XCTUnwrap(fixture["text_argmax"]).asType(.int32)

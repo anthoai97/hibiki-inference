@@ -5,15 +5,14 @@ import Foundation
 /// from a single hard-coded canonical source (Hugging Face, pinned revision).
 ///
 /// The bundle is retained under Application Support so later launches reuse it
-/// instead of downloading ~4 GB again. This is the minimal prototype behaviour
+/// instead of downloading ~2 GB again. This is the minimal prototype behaviour
 /// from ticket #20: basic progress, a plain error with retry, per-file resume
-/// (a file already on disk is kept), and a presence check — no background
-/// download, no partial-file resume, no automatic updates.
+/// (a file already on disk is kept), and a presence check.
 ///
-/// The type is `@MainActor` and uses a main delegate queue, so its published
-/// state and the download continuation are only ever touched on the main
-/// thread — no cross-thread races.
-@MainActor
+/// URLSession delivers its callbacks on a background serial queue (not the main
+/// thread), progress is published to the UI only when the whole-percent value
+/// changes, and the download continuation is guarded by a lock — so a
+/// multi-gigabyte download never floods or stalls the main thread.
 final class ArtifactBundleStore: NSObject, ObservableObject {
     enum Phase: Equatable {
         case idle
@@ -37,12 +36,15 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.waitsForConnectivity = true
-        return URLSession(configuration: config, delegate: self, delegateQueue: .main)
+        // delegateQueue nil -> a background serial queue; callbacks stay off the main thread.
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
 
+    private let lock = NSLock()
     private var isRunning = false
     private var activeContinuation: CheckedContinuation<URL, Error>?
-    private var reportProgress: (Double) -> Void = { _ in }
+    private var currentLabel = ""
+    private var lastReportedPercent = -1
 
     /// Directory the bundle is retained in, pinned to the revision.
     var bundleDirectory: URL {
@@ -67,18 +69,22 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
     }
 
     /// Reflect on-disk state without downloading (call when the screen appears).
-    func refresh() { phase = isComplete ? .ready : .idle }
+    func refresh() { publish(isComplete ? .ready : .idle) }
 
     /// Start (or retry) downloading any missing files.
     func start() {
-        guard !isRunning else { return }
+        lock.lock()
+        if isRunning { lock.unlock(); return }
         isRunning = true
+        lock.unlock()
         Task { await run() }
     }
 
     private func run() async {
-        defer { isRunning = false }
-        if isComplete { phase = .ready; return }
+        defer {
+            lock.lock(); isRunning = false; lock.unlock()
+        }
+        if isComplete { publish(.ready); return }
         do {
             try FileManager.default.createDirectory(at: bundleDirectory, withIntermediateDirectories: true)
             excludeFromBackup(bundleDirectory)
@@ -88,11 +94,14 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
                 let destination = localURL(for: name)
                 if FileManager.default.fileExists(atPath: destination.path) { continue }
 
-                let label = "File \(index + 1) of \(total): \(name)"
-                phase = .downloading(label: label, fraction: 0)
-                let temporary = try await downloadOne(name: name) { fraction in
-                    self.phase = .downloading(label: label, fraction: fraction)
-                }
+                lock.lock()
+                currentLabel = "File \(index + 1) of \(total): \(name)"
+                lastReportedPercent = -1
+                let label = currentLabel
+                lock.unlock()
+                publish(.downloading(label: label, fraction: 0))
+
+                let temporary = try await downloadOne(name: name)
                 do {
                     try FileManager.default.moveItem(at: temporary, to: destination)
                 } catch {
@@ -103,23 +112,32 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
 
             // Minimal validation: every expected file is present.
             guard isComplete else {
-                phase = .failed("Download finished but some files are missing.")
+                publish(.failed("Download finished but some files are missing."))
                 return
             }
-            phase = .ready
+            publish(.ready)
         } catch {
-            phase = .failed(Self.message(for: error))
+            publish(.failed(Self.message(for: error)))
         }
     }
 
-    private func downloadOne(name: String, progress: @escaping (Double) -> Void) async throws -> URL {
-        reportProgress = progress
+    private func downloadOne(name: String) async throws -> URL {
         var request = URLRequest(url: remoteURL(for: name))
         request.setValue("HibikiEdge", forHTTPHeaderField: "User-Agent")
         return try await withCheckedThrowingContinuation { continuation in
-            self.activeContinuation = continuation
-            self.session.downloadTask(with: request).resume()
+            lock.lock()
+            activeContinuation = continuation
+            lock.unlock()
+            session.downloadTask(with: request).resume()
         }
+    }
+
+    private func finish(_ result: Result<URL, Error>) {
+        lock.lock()
+        let continuation = activeContinuation
+        activeContinuation = nil
+        lock.unlock()
+        continuation?.resume(with: result)
     }
 
     private func excludeFromBackup(_ url: URL) {
@@ -129,10 +147,8 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
         try? mutable.setResourceValues(values)
     }
 
-    private func finish(_ result: Result<URL, Error>) {
-        guard let continuation = activeContinuation else { return }
-        activeContinuation = nil
-        continuation.resume(with: result)
+    private func publish(_ newPhase: Phase) {
+        DispatchQueue.main.async { self.phase = newPhase }
     }
 
     private static func message(for error: Error) -> String {
@@ -144,43 +160,51 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
 }
 
 extension ArtifactBundleStore: URLSessionDownloadDelegate {
-    nonisolated func urlSession(_ session: URLSession,
-                                downloadTask: URLSessionDownloadTask,
-                                didWriteData bytesWritten: Int64,
-                                totalBytesWritten: Int64,
-                                totalBytesExpectedToWrite: Int64) {
+    func urlSession(_ session: URLSession,
+                    downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64,
+                    totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
         guard totalBytesExpectedToWrite > 0 else { return }
-        let fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        MainActor.assumeIsolated { reportProgress(fraction) }
-    }
-
-    nonisolated func urlSession(_ session: URLSession,
-                                downloadTask: URLSessionDownloadTask,
-                                didFinishDownloadingTo location: URL) {
-        // `location` is removed once this method returns, so move it somewhere we
-        // own before hopping actors.
-        let response = downloadTask.response as? HTTPURLResponse
-        let moved: Result<URL, Error>
-        if let response, !(200...299).contains(response.statusCode) {
-            moved = .failure(NSError(domain: "HibikiEdge", code: response.statusCode,
-                                     userInfo: [NSLocalizedDescriptionKey: "Server returned HTTP \(response.statusCode)."]))
-        } else {
-            let stable = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            do {
-                try FileManager.default.moveItem(at: location, to: stable)
-                moved = .success(stable)
-            } catch {
-                moved = .failure(error)
-            }
+        let percent = Int(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100)
+        lock.lock()
+        let changed = percent != lastReportedPercent
+        if changed { lastReportedPercent = percent }
+        let label = currentLabel
+        lock.unlock()
+        // Publish at most once per whole percent, so a multi-GB file makes ~100
+        // UI updates rather than thousands.
+        if changed {
+            publish(.downloading(label: label, fraction: Double(percent) / 100))
         }
-        MainActor.assumeIsolated { finish(moved) }
     }
 
-    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        // Success is resumed in didFinishDownloadingTo. If the task ended without
-        // delivering a file, resume here too so the run never hangs and Retry works.
-        // `finish` is a no-op once the continuation has already been resumed.
-        let result: Result<URL, Error> = .failure(error ?? URLError(.unknown))
-        MainActor.assumeIsolated { finish(result) }
+    func urlSession(_ session: URLSession,
+                    downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        guard let http = downloadTask.response as? HTTPURLResponse else {
+            finish(.failure(URLError(.badServerResponse)))
+            return
+        }
+        guard (200...299).contains(http.statusCode) else {
+            finish(.failure(NSError(domain: "HibikiEdge", code: http.statusCode,
+                                    userInfo: [NSLocalizedDescriptionKey: "Server returned HTTP \(http.statusCode)."])))
+            return
+        }
+        // `location` is removed once this method returns, so move it somewhere we own.
+        let stable = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        do {
+            try FileManager.default.moveItem(at: location, to: stable)
+            finish(.success(stable))
+        } catch {
+            finish(.failure(error))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // Success is resumed in didFinishDownloadingTo (same serial queue, ordered
+        // before this). If the task ended without delivering a file, resume here
+        // so the run never hangs; finish is a no-op once already resumed.
+        finish(.failure(error ?? URLError(.unknown)))
     }
 }

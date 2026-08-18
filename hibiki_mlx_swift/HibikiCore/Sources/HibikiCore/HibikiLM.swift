@@ -46,16 +46,25 @@ public final class HibikiLM: Module {
     }
 
     /// Load only the temporal-path weights (`text_emb`, `transformer`,
-    /// `out_norm`, `text_linear`) from the bundle's Hibiki safetensors, cast to
-    /// float32. (The depth/audio/conditioner weights in the file are ignored
-    /// here; `update` runs with no verification so the extra keys are harmless.)
+    /// `out_norm`, `text_linear`) from the bundle's Hibiki safetensors. When the
+    /// bundle declares weight-only quantization, the Linear layers are quantized
+    /// first (matching the reference's `quantize_linear_layers`) so the packed
+    /// weight/scales/biases load into them. Float parameters are widened to
+    /// float32 for CPU parity; packed integer weights are kept as-is. (The
+    /// depth/audio/conditioner weights in the file are ignored here; `update`
+    /// runs with no verification so the extra keys are harmless.)
     public static func loadTemporal(from bundle: ArtifactBundle) throws -> HibikiLM {
         let model = HibikiLM(config: bundle.config)
+        if let quant = bundle.config.quantization {
+            quantize(model: model, groupSize: quant.groupSize, bits: quant.bits) { _, module in
+                module is Linear
+            }
+        }
         let all = try loadArrays(url: bundle.hibikiWeightsURL)
         let prefixes = ["text_emb.", "out_norm.", "text_linear.", "transformer."]
         var temporal: [String: MLXArray] = [:]
         for (key, value) in all where prefixes.contains(where: key.hasPrefix) {
-            temporal[key] = value.asType(.float32)
+            temporal[key] = value.dtype == .uint32 ? value : value.asType(.float32)
         }
         model.update(parameters: ModuleParameters.unflattened(temporal))
         eval(model)

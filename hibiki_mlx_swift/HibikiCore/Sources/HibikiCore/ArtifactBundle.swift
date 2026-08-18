@@ -54,8 +54,8 @@ public struct ArtifactBundle {
     /// These few checks catch a truncated, mismatched, or wrong-revision file
     /// before any weights are loaded.
     private static func validateHibikiShapes(_ index: SafetensorsIndex, config: HibikiConfig) throws {
+        // Embeddings and norms are never quantized.
         try expect(index, "text_emb.weight", [config.textInVocabSize, config.dim])
-        try expect(index, "text_linear.weight", [config.textOutVocabSize, config.dim])
         try expect(index, "out_norm.weight", [config.dim])
 
         for codebook in 0..<config.audioCodebooks {
@@ -68,6 +68,27 @@ public struct ArtifactBundle {
             let rows = slice == 0 ? config.textInVocabSize : config.audioVocabSize
             try expect(index, "depformer.slices.\(slice).emb.weight", [rows, config.depformerDim])
         }
+
+        // Linear layers are quantized in a Q8/Q4 bundle, full-precision otherwise.
+        try expectLinear(index, "text_linear", outFeatures: config.textOutVocabSize, inFeatures: config.dim, config: config)
+        // One temporal layer, as a representative sample of the transformer linears.
+        try expectLinear(index, "transformer.layers.0.self_attn.in_proj", outFeatures: 3 * config.dim, inFeatures: config.dim, config: config)
+    }
+
+    /// Validate a Linear layer: a full-precision `[out, in]` weight, or — when
+    /// the bundle declares affine weight-only quantization — a packed integer
+    /// weight plus per-group scales and biases.
+    private static func expectLinear(_ index: SafetensorsIndex, _ name: String,
+                                     outFeatures: Int, inFeatures: Int, config: HibikiConfig) throws {
+        guard let quant = config.quantization else {
+            try expect(index, "\(name).weight", [outFeatures, inFeatures])
+            return
+        }
+        let packedColumns = inFeatures * quant.bits / 32 // `bits` values per 32-bit word
+        let groups = inFeatures / quant.groupSize        // one scale/bias per group
+        try expect(index, "\(name).weight", [outFeatures, packedColumns])
+        try expect(index, "\(name).scales", [outFeatures, groups])
+        try expect(index, "\(name).biases", [outFeatures, groups])
     }
 
     private static func validateMimiPresence(_ index: SafetensorsIndex, config: HibikiConfig) throws {

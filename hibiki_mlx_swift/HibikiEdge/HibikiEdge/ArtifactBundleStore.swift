@@ -24,12 +24,12 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
 
     @Published private(set) var phase: Phase = .idle
 
-    // Pinned canonical source.
-    private static let repo = "kyutai/hibiki-1b-mlx-bf16"
-    private static let revision = "b3d6291f3dcf7954e1a502e4d66f32e3556f17ae"
+    // Pinned canonical source: the Q8-quantized bundle (~2.1 GB).
+    private static let repo = "anquachdev/hibiki-1b-mlx-q8"
+    private static let revision = "417bed8fc89290a5299cc31ca595e467ff8ac84a"
     private static let fileNames = [
         "config.json",
-        "hibiki-mlx-dc2cf5a5@80.safetensors",
+        "hibiki-mlx-dc2cf5a5@80.q8.safetensors",
         "mimi-dbaa9758@125.safetensors",
         "tokenizer_spm_48k_multi6_2.model",
     ]

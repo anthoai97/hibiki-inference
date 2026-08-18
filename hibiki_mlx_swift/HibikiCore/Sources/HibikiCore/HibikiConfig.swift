@@ -18,6 +18,16 @@ public enum ModelLoadError: LocalizedError {
     }
 }
 
+/// Weight-only quantization of the language-model Linear layers, as declared
+/// by the bundle's `hibiki_mlx_quantization` block. Embeddings, norms, and the
+/// Mimi codec stay unquantized.
+public struct QuantizationSpec: Decodable, Equatable {
+    public let format: String
+    public let target: String
+    public let bits: Int
+    public let groupSize: Int
+}
+
 /// The bundle's own `config.json`, decoded and checked against the
 /// contract this implementation supports. Mirrors `LmConfig.from_config_dict`
 /// in the Python reference: the released weights are already in MLX naming, so
@@ -58,6 +68,12 @@ public struct HibikiConfig: Decodable {
     public let nQ: Int
     public let depQ: Int
     public let delays: [Int]
+
+    /// Present when the LM Linear layers are quantized (e.g. the Q8 bundle).
+    public let hibikiMlxQuantization: QuantizationSpec?
+
+    /// Weight-only LM quantization, or nil for a full-precision bundle.
+    public var quantization: QuantizationSpec? { hibikiMlxQuantization }
 
     // MARK: Derived contract values
 

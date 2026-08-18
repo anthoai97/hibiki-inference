@@ -5,23 +5,22 @@ import Foundation
 /// shape-consistent with the configuration.
 ///
 /// This is the load contract's front half — the "minimal validation to avoid
-/// loading missing or obviously incompatible files" from ticket #20/#21. It
-/// stops short of constructing MLX modules or evaluating them; building the
-/// `LoadedModel` (Temporal/Depth Transformers and the Mimi codec) and running a
-/// warm evaluation is the native-inference work in the following tickets, and
-/// needs a real Metal GPU.
-struct ArtifactBundle {
-    let directory: URL
-    let config: HibikiConfig
-    let hibikiWeightsURL: URL
-    let mimiWeightsURL: URL
-    let tokenizerURL: URL
+/// loading missing or obviously incompatible files". It stops short of
+/// constructing MLX modules or evaluating them; building the loaded model
+/// (Temporal/Depth Transformers and the Mimi codec) and running a warm
+/// evaluation is the native-inference work that follows.
+public struct ArtifactBundle {
+    public let directory: URL
+    public let config: HibikiConfig
+    public let hibikiWeightsURL: URL
+    public let mimiWeightsURL: URL
+    public let tokenizerURL: URL
 
     /// Read `config.json`, resolve the three named files, and validate that the
     /// Hibiki and Mimi weight files carry the tensors this contract requires at
     /// the shapes the configuration implies. Throws `ModelLoadError` with a
     /// plain, diagnosable message on any mismatch.
-    static func validate(directory: URL) throws -> ArtifactBundle {
+    public static func validate(directory: URL) throws -> ArtifactBundle {
         let config = try HibikiConfig.load(from: directory.appendingPathComponent("config.json"))
         try config.validate()
 

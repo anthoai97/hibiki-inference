@@ -6,19 +6,19 @@ import Foundation
 /// The format is an 8-byte little-endian header length, then that many bytes of
 /// JSON mapping each tensor name to `{dtype, shape, data_offsets}`, plus an
 /// optional `__metadata__` entry.
-struct SafetensorsIndex {
-    struct Entry {
-        let dtype: String
-        let shape: [Int]
+public struct SafetensorsIndex {
+    public struct Entry {
+        public let dtype: String
+        public let shape: [Int]
     }
 
-    let entries: [String: Entry]
+    public let entries: [String: Entry]
 
-    func shape(of name: String) -> [Int]? { entries[name]?.shape }
-    func contains(_ name: String) -> Bool { entries[name] != nil }
-    var count: Int { entries.count }
+    public func shape(of name: String) -> [Int]? { entries[name]?.shape }
+    public func contains(_ name: String) -> Bool { entries[name] != nil }
+    public var count: Int { entries.count }
 
-    init(fileURL: URL) throws {
+    public init(fileURL: URL) throws {
         let handle: FileHandle
         do {
             handle = try FileHandle(forReadingFrom: fileURL)

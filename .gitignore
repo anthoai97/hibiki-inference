@@ -18,6 +18,8 @@ __pycache__/
 # Xcode / Swift build products and local user state.
 DerivedData/
 build/
+.build/
+.swiftpm/
 *.xcuserstate
 xcuserdata/
 *.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist

@@ -2,13 +2,13 @@ import Foundation
 
 /// Error raised when the artifact bundle is missing, unreadable, or does not
 /// match the configuration contract.
-enum ModelLoadError: LocalizedError {
+public enum ModelLoadError: LocalizedError {
     case unreadableConfig(String)
     case invalidConfig(String)
     case missingFile(String)
     case shapeMismatch(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case let .unreadableConfig(message): return message
         case let .invalidConfig(message): return message
@@ -22,65 +22,65 @@ enum ModelLoadError: LocalizedError {
 /// contract this implementation supports. Mirrors `LmConfig.from_config_dict`
 /// in the Python reference: the released weights are already in MLX naming, so
 /// these values are the load contract every tensor name and shape must match.
-struct HibikiConfig: Decodable {
+public struct HibikiConfig: Decodable {
     // Artifact file names, named by the bundle itself.
-    let mimiName: String
-    let moshiName: String
-    let tokenizerName: String
+    public let mimiName: String
+    public let moshiName: String
+    public let tokenizerName: String
 
     // Temporal Transformer.
-    let dim: Int
-    let numHeads: Int
-    let numLayers: Int
-    let hiddenScale: Double
-    let context: Int
-    let maxPeriod: Int
-    let causal: Bool
-    let norm: String
-    let gating: String
-    let positionalEmbedding: String
+    public let dim: Int
+    public let numHeads: Int
+    public let numLayers: Int
+    public let hiddenScale: Double
+    public let context: Int
+    public let maxPeriod: Int
+    public let causal: Bool
+    public let norm: String
+    public let gating: String
+    public let positionalEmbedding: String
 
     // Depth Transformer.
-    let depformerDim: Int
-    let depformerNumHeads: Int
-    let depformerNumLayers: Int
-    let depformerDimFeedforward: Int
-    let depformerContext: Int
-    let depformerMaxPeriod: Int
-    let depformerWeightsPerStep: Bool
-    let depformerPosEmb: String
-    let depformerCausal: Bool
+    public let depformerDim: Int
+    public let depformerNumHeads: Int
+    public let depformerNumLayers: Int
+    public let depformerDimFeedforward: Int
+    public let depformerContext: Int
+    public let depformerMaxPeriod: Int
+    public let depformerWeightsPerStep: Bool
+    public let depformerPosEmb: String
+    public let depformerCausal: Bool
 
     // Vocabularies and streams.
-    let textCard: Int
-    let existingTextPaddingId: Int
-    let card: Int
-    let nQ: Int
-    let depQ: Int
-    let delays: [Int]
+    public let textCard: Int
+    public let existingTextPaddingId: Int
+    public let card: Int
+    public let nQ: Int
+    public let depQ: Int
+    public let delays: [Int]
 
     // MARK: Derived contract values
 
     /// Text embedding rows: the text vocabulary plus one no-text id.
-    var textInVocabSize: Int { textCard + 1 }
+    public var textInVocabSize: Int { textCard + 1 }
     /// Text logits width.
-    var textOutVocabSize: Int { textCard }
+    public var textOutVocabSize: Int { textCard }
     /// Audio embedding rows: the codebook cardinality plus one padding id.
-    var audioVocabSize: Int { card + 1 }
+    public var audioVocabSize: Int { card + 1 }
     /// Total audio streams the model models (source + target).
-    var audioCodebooks: Int { nQ }
+    public var audioCodebooks: Int { nQ }
     /// Target-audio codebooks the Depth Transformer samples.
-    var targetCodebooks: Int { depQ }
+    public var targetCodebooks: Int { depQ }
     /// Source-audio codebooks Mimi supplies from the French input.
-    var sourceCodebooks: Int { nQ - depQ }
+    public var sourceCodebooks: Int { nQ - depQ }
     /// Feed-forward width of the Temporal Transformer.
-    var dimFeedforward: Int { Int(hiddenScale * Double(dim)) }
+    public var dimFeedforward: Int { Int(hiddenScale * Double(dim)) }
 
     private static let supportedNorms = ["rms_norm", "rms_norm_f32"]
 
     /// Reject a bundle this implementation cannot load, echoing the reference's
     /// checks so failures are diagnosable rather than a later shape crash.
-    func validate() throws {
+    public func validate() throws {
         guard Self.supportedNorms.contains(norm) else {
             throw ModelLoadError.invalidConfig("unsupported norm '\(norm)'")
         }
@@ -101,7 +101,7 @@ struct HibikiConfig: Decodable {
         }
     }
 
-    static func load(from url: URL) throws -> HibikiConfig {
+    public static func load(from url: URL) throws -> HibikiConfig {
         let data: Data
         do {
             data = try Data(contentsOf: url)

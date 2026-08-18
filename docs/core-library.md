@@ -1,6 +1,6 @@
 # Hibiki 1B MLX inference: core implementation reference
 
-This document is the implementation context for an on-device inference library around `kyutai/hibiki-1b-mlx-bf16`. It records the released artifact contract, the streaming state machine, tensor shapes, and MLX-specific runtime constraints. It also calls out places where Kyutai's paper and public reference implementations do not agree. Treat those items as parity-test requirements, not as details to guess. Confirmed public behavior and package constraints are summarized in [the Python package contract](./python-package.md).
+This document is the implementation context for an on-device inference library around `kyutai/hibiki-1b-mlx-bf16`. It records the released artifact contract, the streaming state machine, tensor shapes, and MLX-specific runtime constraints. It also calls out places where Kyutai's paper and public reference implementations do not agree.
 
 > **Project direction:** this repository reimplements inference directly with MLX. `moshi_mlx` and `moshi-swift` are read-only behavioral references, not runtime dependencies and not code to wrap, import, or copy blindly. A later iOS target will be a separate native MLX Swift implementation sharing the same artifact and inference contracts.
 
@@ -24,6 +24,8 @@ All implementation links below are immutable revisions.
 Do not copy a moving `main` implementation without recording the revision. The checkpoint's tensor contract is stable, but helper APIs have already changed: release 0.2.1 hardcodes generation batch size one, while current `LmGen` accepts `batch_size`. ([0.2.1 generator](https://github.com/kyutai-labs/moshi/blob/dd6b9fffd613e5a2c64166a7ec09b121be09877b/moshi_mlx/moshi_mlx/models/generate.py#L14-L40), [current generator](https://github.com/kyutai-labs/moshi/blob/e6a55d2722a65870ef52a6c9f6ecfc0e90f38362/moshi_mlx/moshi_mlx/models/generate.py#L14-L46))
 
 ### Moshi Swift: historical iOS reference
+
+MLX Swift Library: https://github.com/ml-explore/mlx-swift
 
 `moshi-swift` is **read-only study material**, not a package or runtime dependency, and not source to copy blindly. The README claims Moshi and Hibiki variant support; its value here is showing one historical native Apple implementation: both causal Mimi and the multistream LM run through MLX Swift, with 24 kHz PCM processed in 1,920-sample frames, the delayed 17-stream schedule advanced one frame at a time, and completed target tokens decoded back to PCM. ([README](https://github.com/kyutai-labs/moshi-swift/blob/df64ffdbe224e1ecb1ade1d254f347d379ed7f7a/README.md#L10-L16), [Mimi configuration and streaming API](https://github.com/kyutai-labs/moshi-swift/blob/df64ffdbe224e1ecb1ade1d254f347d379ed7f7a/MoshiLib/Mimi.swift#L22-L49), [1,920-sample loop](https://github.com/kyutai-labs/moshi-swift/blob/df64ffdbe224e1ecb1ade1d254f347d379ed7f7a/MoshiCLI/RunMoshi.swift#L111-L127), [app frame loop](https://github.com/kyutai-labs/moshi-swift/blob/df64ffdbe224e1ecb1ade1d254f347d379ed7f7a/Moshi/ContentView.swift#L653-L689), [scheduler](https://github.com/kyutai-labs/moshi-swift/blob/df64ffdbe224e1ecb1ade1d254f347d379ed7f7a/MoshiLib/LM.swift#L358-L451))
 

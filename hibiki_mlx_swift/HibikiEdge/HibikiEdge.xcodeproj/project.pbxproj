@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		E1000000000000000000A018 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = E1000000000000000000A017 /* MLX */; };
+		E1000000000000000000B001 /* HibikiCore in Frameworks */ = {isa = PBXBuildFile; productRef = E1000000000000000000B002 /* HibikiCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E1000000000000000000A018 /* MLX in Frameworks */,
+				E1000000000000000000B001 /* HibikiCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +69,7 @@
 			name = HibikiEdge;
 			packageProductDependencies = (
 				E1000000000000000000A017 /* MLX */,
+				E1000000000000000000B002 /* HibikiCore */,
 			);
 			productName = HibikiEdge;
 			productReference = E1000000000000000000A006 /* HibikiEdge.app */;
@@ -99,6 +102,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				E1000000000000000000A016 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				E1000000000000000000B003 /* XCLocalSwiftPackageReference "HibikiCore" */,
 			);
 			productRefGroup = E1000000000000000000A003 /* Products */;
 			projectDirPath = "";
@@ -284,6 +288,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		E1000000000000000000B003 /* XCLocalSwiftPackageReference "HibikiCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../HibikiCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		E1000000000000000000A016 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -300,6 +311,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E1000000000000000000A016 /* XCRemoteSwiftPackageReference "mlx-swift" */;
 			productName = MLX;
+		};
+		E1000000000000000000B002 /* HibikiCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1000000000000000000B003 /* XCLocalSwiftPackageReference "HibikiCore" */;
+			productName = HibikiCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

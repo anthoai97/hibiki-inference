@@ -1,34 +1,37 @@
 import SwiftUI
 
-/// The one Hibiki Edge screen.
-///
-/// So far it has model download (ticket #20) and source-audio selection with
-/// Play French (ticket #19). Translate, the English transcript, and Play
-/// English are added by later tickets. MLX Swift is a linked dependency but is
-/// not exercised here.
+/// The one Hibiki Edge screen: download the model, pick a French source, and
+/// translate it to English text and speech. Real inference needs the device's
+/// Metal GPU; the simulator runs the UI but not the translation itself.
 struct ContentView: View {
     @StateObject private var bundle = ArtifactBundleStore()
     @StateObject private var playback = AudioPlayback()
+    @StateObject private var translator = Translator()
     @State private var selection: SourceRecording = .defaultSelection
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 24) {
             header
             modelStatus
             sourceControls
+            translationSection
             Spacer()
             attribution
         }
         .padding()
         .onAppear { bundle.refresh() }
-        // Selecting another source stops the current playback so the two never overlap.
-        .onChange(of: selection) { _, _ in playback.stop() }
+        // Selecting another source stops playback and clears the last result, so
+        // the two audio streams never overlap and stale text never lingers.
+        .onChange(of: selection) { _, _ in
+            playback.stop()
+            translator.clear()
+        }
     }
 
     private var header: some View {
         Text("Hibiki Edge")
             .font(.largeTitle.bold())
-            .padding(.top, 32)
+            .padding(.top, 24)
     }
 
     @ViewBuilder
@@ -79,6 +82,7 @@ struct ContentView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .disabled(translator.isWorking)
 
             Button {
                 if let url = selection.url { playback.play(url: url) }
@@ -87,10 +91,70 @@ struct ContentView: View {
                       systemImage: playback.isPlaying ? "speaker.wave.2.fill" : "play.fill")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(selection.url == nil)
+            .disabled(selection.url == nil || translator.isWorking)
         }
+    }
+
+    @ViewBuilder
+    private var translationSection: some View {
+        VStack(spacing: 12) {
+            switch translator.status {
+            case .idle, .done:
+                translateButton
+            case let .working(message):
+                VStack(spacing: 6) {
+                    ProgressView()
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            case let .failed(message):
+                VStack(spacing: 8) {
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                    translateButton
+                }
+            }
+
+            if !translator.transcript.isEmpty {
+                ScrollView {
+                    Text(translator.transcript)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                .frame(maxHeight: 160)
+            }
+
+            if translator.canReplay {
+                Button {
+                    playback.replayTarget(translator.targetSamples)
+                } label: {
+                    Label("Play English", systemImage: "play.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(playback.isPlaying)
+            }
+        }
+    }
+
+    private var translateButton: some View {
+        Button {
+            if let url = selection.url {
+                translator.translate(sourceURL: url, bundleDirectory: bundle.bundleDirectory, playback: playback)
+            }
+        } label: {
+            Label("Translate", systemImage: "waveform")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .disabled(bundle.phase != .ready || selection.url == nil || translator.isWorking)
     }
 
     private var attribution: some View {

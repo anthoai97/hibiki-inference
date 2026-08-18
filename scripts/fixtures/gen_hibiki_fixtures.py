@@ -27,14 +27,17 @@ from pathlib import Path
 import math
 
 import mlx.core as mx
+import numpy as np
 import sentencepiece
 from mlx.utils import tree_map
 
 from hibiki_mlx.artifacts.quantization import QuantizationSpec, quantize_linear_layers
 from hibiki_mlx.generate import LmGen
+from hibiki_mlx.inference import LoadedModel
 from hibiki_mlx.models.lm import Lm, LmConfig
 from hibiki_mlx.models.mimi import Mimi, mimi_202407, remap_released_weights
 from hibiki_mlx.sampling import Sampler
+from hibiki_mlx.session import InferenceSession
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "hibiki_mlx_swift/HibikiCore/Tests/HibikiCoreTests/Fixtures"
@@ -50,6 +53,9 @@ MIMI_FRAMES = 8
 
 # Number of frames the delayed-scheduler fixture drives.
 LMGEN_FRAMES = 12
+
+# Number of source frames the end-to-end session fixture streams.
+SESSION_FRAMES = 6
 
 # Decode cases exercised by the Swift tokenizer parity test.
 DECODE_CASES = [
@@ -144,6 +150,39 @@ def lmgen_fixture(bundle_dir: Path, out_path: Path) -> None:
     print(f"wrote {out_path.name}: text {text.shape}, audio_frames {audio.shape}")
 
 
+def session_fixture(bundle_dir: Path, out_path: Path) -> None:
+    lm, lm_config, config = load_lm_cpu_f32(bundle_dir)
+    mimi, _ = load_mimi_cpu_f32(bundle_dir)
+    tokenizer = sentencepiece.SentencePieceProcessor(str(bundle_dir / config["tokenizer_name"]))
+    loaded = LoadedModel(lm_config=lm_config, mimi=mimi, lm=lm, tokenizer=tokenizer)
+    session = InferenceSession(
+        loaded, condition=CONDITION, text_sampler=Sampler(temp=0), audio_sampler=Sampler(temp=0)
+    )
+
+    frame_size = mimi.cfg.frame_size
+    total = SESSION_FRAMES * frame_size
+    samples = np.array(
+        [0.05 * math.sin(2.0 * math.pi * 180.0 * i / mimi.cfg.sample_rate) for i in range(total)],
+        dtype=np.float32,
+    )
+
+    results = session.push_pcm(samples)
+    results += session.finish()
+    text_tokens = [r.text_token for r in results]
+    pcm_chunks = [r.pcm for r in results if r.pcm is not None]
+    output_pcm = np.concatenate(pcm_chunks) if pcm_chunks else np.zeros(0, dtype=np.float32)
+
+    mx.save_safetensors(
+        str(out_path),
+        {
+            "input_pcm": mx.array(samples, dtype=mx.float32).reshape(1, 1, total),
+            "text_tokens": mx.array(text_tokens, dtype=mx.int32),
+            "output_pcm": mx.array(np.ascontiguousarray(output_pcm), dtype=mx.float32),
+        },
+    )
+    print(f"wrote {out_path.name}: {len(text_tokens)} steps, output_pcm {output_pcm.shape}")
+
+
 def load_mimi_cpu_f32(bundle_dir: Path) -> tuple[Mimi, int]:
     """Load one bundle's Mimi codec exactly as the Swift CPU path does."""
     config = json.loads((bundle_dir / "config.json").read_text())
@@ -216,12 +255,17 @@ def main() -> None:
         sample_step_fixture(bundle_dir, FIXTURES / f"sample_step_{tag}.safetensors")
         lmgen_fixture(bundle_dir, FIXTURES / f"lmgen_{tag}.safetensors")
     # The Mimi codec and tokenizer are shared across bundles; take them from
-    # whichever bundle is present.
+    # whichever bundle is present. The end-to-end session fixture exercises the
+    # full pipeline once, on the Q8 target bundle if present.
     for bundle_dir in bundles.values():
         if (bundle_dir / "config.json").exists():
             mimi_fixture(bundle_dir, FIXTURES / "mimi_roundtrip.safetensors")
             tokenizer_fixture(bundle_dir, FIXTURES / "tokenizer_decode.json")
             break
+    if (bundles["q8"] / "config.json").exists():
+        session_fixture(bundles["q8"], FIXTURES / "session_q8.safetensors")
+    else:
+        print("skipping session fixture: the Q8 bundle is not present")
 
 
 if __name__ == "__main__":

@@ -2,46 +2,25 @@ import SwiftUI
 
 /// The one Hibiki Edge screen.
 ///
-/// Ticket #19 adds source-audio selection and Play French: pick one of the
-/// five bundled French recordings (default `2.wav`) and play it through native
-/// iOS playback. Model download, Translate, transcript, and Play English are
-/// added by later tickets. MLX Swift is a linked dependency but is not
-/// exercised here.
+/// So far it has model download (ticket #20) and source-audio selection with
+/// Play French (ticket #19). Translate, the English transcript, and Play
+/// English are added by later tickets. MLX Swift is a linked dependency but is
+/// not exercised here.
 struct ContentView: View {
+    @StateObject private var bundle = ArtifactBundleStore()
     @StateObject private var playback = AudioPlayback()
     @State private var selection: SourceRecording = .defaultSelection
 
     var body: some View {
         VStack(spacing: 28) {
             header
-
-            VStack(spacing: 16) {
-                Picker("Source recording", selection: $selection) {
-                    ForEach(SourceRecording.all) { recording in
-                        Text(recording.displayName).tag(recording)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Button {
-                    if let url = selection.url { playback.play(url: url) }
-                } label: {
-                    Label(playback.isPlaying ? "Playing…" : "Play French",
-                          systemImage: playback.isPlaying ? "speaker.wave.2.fill" : "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(selection.url == nil)
-            }
-
+            modelStatus
+            sourceControls
             Spacer()
-
-            Text("Model: Hibiki 1B · CC-BY 4.0 (Kyutai)")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            attribution
         }
         .padding()
+        .onAppear { bundle.refresh() }
         // Selecting another source stops the current playback so the two never overlap.
         .onChange(of: selection) { _, _ in playback.stop() }
     }
@@ -55,7 +34,75 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .padding(.top, 40)
+        .padding(.top, 32)
+    }
+
+    @ViewBuilder
+    private var modelStatus: some View {
+        switch bundle.phase {
+        case .idle:
+            Button {
+                bundle.start()
+            } label: {
+                Label("Download model", systemImage: "arrow.down.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
+        case let .downloading(label, fraction):
+            VStack(spacing: 6) {
+                ProgressView(value: fraction) {
+                    Text(label).font(.caption)
+                }
+                Text("\(Int(fraction * 100))%")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+        case .ready:
+            Label("Model ready", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.subheadline)
+
+        case let .failed(message):
+            VStack(spacing: 8) {
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                Button("Retry download") { bundle.start() }
+                    .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var sourceControls: some View {
+        VStack(spacing: 16) {
+            Picker("Source recording", selection: $selection) {
+                ForEach(SourceRecording.all) { recording in
+                    Text(recording.displayName).tag(recording)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Button {
+                if let url = selection.url { playback.play(url: url) }
+            } label: {
+                Label(playback.isPlaying ? "Playing…" : "Play French",
+                      systemImage: playback.isPlaying ? "speaker.wave.2.fill" : "play.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(selection.url == nil)
+        }
+    }
+
+    private var attribution: some View {
+        Text("Model: Hibiki 1B · CC-BY 4.0 (Kyutai)")
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
     }
 }
 

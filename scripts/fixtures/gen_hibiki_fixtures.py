@@ -31,6 +31,7 @@ import sentencepiece
 from mlx.utils import tree_map
 
 from hibiki_mlx.artifacts.quantization import QuantizationSpec, quantize_linear_layers
+from hibiki_mlx.generate import LmGen
 from hibiki_mlx.models.lm import Lm, LmConfig
 from hibiki_mlx.models.mimi import Mimi, mimi_202407, remap_released_weights
 from hibiki_mlx.sampling import Sampler
@@ -46,6 +47,9 @@ CONDITION = "very_good"
 
 # Number of 80 ms source frames the Mimi round-trip fixture streams.
 MIMI_FRAMES = 8
+
+# Number of frames the delayed-scheduler fixture drives.
+LMGEN_FRAMES = 12
 
 # Decode cases exercised by the Swift tokenizer parity test.
 DECODE_CASES = [
@@ -101,6 +105,43 @@ def sample_step_fixture(bundle_dir: Path, out_path: Path) -> None:
         },
     )
     print(f"wrote {out_path.name}: text_token={text_token.tolist()} audio={audio_tokens.squeeze(-1).tolist()}")
+
+
+def lmgen_fixture(bundle_dir: Path, out_path: Path) -> None:
+    lm, lm_config, _ = load_lm_cpu_f32(bundle_dir)
+    greedy = Sampler(temp=0)
+    gen = LmGen(lm, greedy, greedy)
+    provider = lm.condition_provider
+    condition = provider.condition_tensor("description", CONDITION) if provider is not None else None
+
+    source_cb = lm_config.source_codebooks
+    source = mx.array(
+        [[(3 * i + 5 * c + 1) % 2048 for c in range(source_cb)] for i in range(LMGEN_FRAMES)],
+        dtype=mx.int32,
+    )  # [frames, source_codebooks]
+
+    texts: list[int] = []
+    audio_frames = []
+    for i in range(LMGEN_FRAMES):
+        token = gen.step(source[i : i + 1], condition)
+        texts.append(int(token.squeeze().item()))
+        frame = gen.last_audio_tokens()
+        if frame is not None:
+            audio_frames.append(frame)  # [1, target_codebooks]
+
+    text = mx.array(texts, dtype=mx.int32)  # [frames]
+    audio = (
+        mx.concatenate(audio_frames, axis=0)
+        if audio_frames
+        else mx.zeros((0, lm_config.target_codebooks), dtype=mx.int32)
+    )  # [ready_frames, target_codebooks]
+    mx.eval(text, audio)
+
+    mx.save_safetensors(
+        str(out_path),
+        {"source_tokens": source, "text_tokens": text, "audio_frames": audio},
+    )
+    print(f"wrote {out_path.name}: text {text.shape}, audio_frames {audio.shape}")
 
 
 def load_mimi_cpu_f32(bundle_dir: Path) -> tuple[Mimi, int]:
@@ -173,6 +214,7 @@ def main() -> None:
             print(f"skipping {tag}: {bundle_dir} not present")
             continue
         sample_step_fixture(bundle_dir, FIXTURES / f"sample_step_{tag}.safetensors")
+        lmgen_fixture(bundle_dir, FIXTURES / f"lmgen_{tag}.safetensors")
     # The Mimi codec and tokenizer are shared across bundles; take them from
     # whichever bundle is present.
     for bundle_dir in bundles.values():

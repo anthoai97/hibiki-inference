@@ -1,29 +1,61 @@
 import SwiftUI
 
-/// Placeholder screen for the Hibiki Edge prototype.
+/// The one Hibiki Edge screen.
 ///
-/// This is the skeleton from issue #18: a single static screen that only has to
-/// launch. MLX Swift is a linked dependency of the app target (declared in the
-/// Xcode project and pinned in `Package.resolved`); it is first exercised by the
-/// native inference tickets, not here, so nothing MLX runs during rendering.
-/// Later tickets replace this body with the real one-screen flow (model
-/// download, source picker, Play French, Translate, transcript, Play English).
+/// Ticket #19 adds source-audio selection and Play French: pick one of the
+/// five bundled French recordings (default `2.wav`) and play it through native
+/// iOS playback. Model download, Translate, transcript, and Play English are
+/// added by later tickets. MLX Swift is a linked dependency but is not
+/// exercised here.
 struct ContentView: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Hibiki Edge")
-                .font(.largeTitle.bold())
+    @StateObject private var playback = AudioPlayback()
+    @State private var selection: SourceRecording = .defaultSelection
 
-            Text("On-device French → English speech translation")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    var body: some View {
+        VStack(spacing: 28) {
+            header
+
+            VStack(spacing: 16) {
+                Picker("Source recording", selection: $selection) {
+                    ForEach(SourceRecording.all) { recording in
+                        Text(recording.displayName).tag(recording)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Button {
+                    if let url = selection.url { playback.play(url: url) }
+                } label: {
+                    Label(playback.isPlaying ? "Playing…" : "Play French",
+                          systemImage: playback.isPlaying ? "speaker.wave.2.fill" : "play.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(selection.url == nil)
+            }
+
+            Spacer()
 
             Text("Model: Hibiki 1B · CC-BY 4.0 (Kyutai)")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
         .padding()
+        // Selecting another source stops the current playback so the two never overlap.
+        .onChange(of: selection) { _, _ in playback.stop() }
+    }
+
+    private var header: some View {
+        VStack(spacing: 8) {
+            Text("Hibiki Edge")
+                .font(.largeTitle.bold())
+            Text("On-device French → English speech translation")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 40)
     }
 }
 

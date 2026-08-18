@@ -20,5 +20,5 @@ struct SourceRecording: Identifiable, Hashable {
     static let all: [SourceRecording] = (1...5).map { SourceRecording(id: "\($0)") }
 
     /// The recording selected on first launch — the known `2.wav` example.
-    static let defaultSelection = all[1]
+    static let defaultSelection = all.first { $0.id == "2" } ?? all[0]
 }

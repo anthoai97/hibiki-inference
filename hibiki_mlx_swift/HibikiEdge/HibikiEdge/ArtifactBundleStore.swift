@@ -9,6 +9,11 @@ import Foundation
 /// from ticket #20: basic progress, a plain error with retry, per-file resume
 /// (a file already on disk is kept), and a presence check — no background
 /// download, no partial-file resume, no automatic updates.
+///
+/// The type is `@MainActor` and uses a main delegate queue, so its published
+/// state and the download continuation are only ever touched on the main
+/// thread — no cross-thread races.
+@MainActor
 final class ArtifactBundleStore: NSObject, ObservableObject {
     enum Phase: Equatable {
         case idle
@@ -32,7 +37,7 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.waitsForConnectivity = true
-        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        return URLSession(configuration: config, delegate: self, delegateQueue: .main)
     }()
 
     private var isRunning = false
@@ -62,7 +67,7 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
     }
 
     /// Reflect on-disk state without downloading (call when the screen appears).
-    func refresh() { setPhase(isComplete ? .ready : .idle) }
+    func refresh() { phase = isComplete ? .ready : .idle }
 
     /// Start (or retry) downloading any missing files.
     func start() {
@@ -73,7 +78,7 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
 
     private func run() async {
         defer { isRunning = false }
-        if isComplete { setPhase(.ready); return }
+        if isComplete { phase = .ready; return }
         do {
             try FileManager.default.createDirectory(at: bundleDirectory, withIntermediateDirectories: true)
             excludeFromBackup(bundleDirectory)
@@ -84,24 +89,26 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
                 if FileManager.default.fileExists(atPath: destination.path) { continue }
 
                 let label = "File \(index + 1) of \(total): \(name)"
-                setPhase(.downloading(label: label, fraction: 0))
+                phase = .downloading(label: label, fraction: 0)
                 let temporary = try await downloadOne(name: name) { fraction in
-                    self.setPhase(.downloading(label: label, fraction: fraction))
+                    self.phase = .downloading(label: label, fraction: fraction)
                 }
-                if FileManager.default.fileExists(atPath: destination.path) {
-                    try? FileManager.default.removeItem(at: destination)
+                do {
+                    try FileManager.default.moveItem(at: temporary, to: destination)
+                } catch {
+                    try? FileManager.default.removeItem(at: temporary)
+                    throw error
                 }
-                try FileManager.default.moveItem(at: temporary, to: destination)
             }
 
             // Minimal validation: every expected file is present.
             guard isComplete else {
-                setPhase(.failed("Download finished but some files are missing."))
+                phase = .failed("Download finished but some files are missing.")
                 return
             }
-            setPhase(.ready)
+            phase = .ready
         } catch {
-            setPhase(.failed(Self.message(for: error)))
+            phase = .failed(Self.message(for: error))
         }
     }
 
@@ -122,12 +129,10 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
         try? mutable.setResourceValues(values)
     }
 
-    private func setPhase(_ newPhase: Phase) {
-        if Thread.isMainThread {
-            phase = newPhase
-        } else {
-            DispatchQueue.main.async { self.phase = newPhase }
-        }
+    private func finish(_ result: Result<URL, Error>) {
+        guard let continuation = activeContinuation else { return }
+        activeContinuation = nil
+        continuation.resume(with: result)
     }
 
     private static func message(for error: Error) -> String {
@@ -139,45 +144,43 @@ final class ArtifactBundleStore: NSObject, ObservableObject {
 }
 
 extension ArtifactBundleStore: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession,
-                    downloadTask: URLSessionDownloadTask,
-                    didWriteData bytesWritten: Int64,
-                    totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite: Int64) {
+    nonisolated func urlSession(_ session: URLSession,
+                                downloadTask: URLSessionDownloadTask,
+                                didWriteData bytesWritten: Int64,
+                                totalBytesWritten: Int64,
+                                totalBytesExpectedToWrite: Int64) {
         guard totalBytesExpectedToWrite > 0 else { return }
-        reportProgress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+        let fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        MainActor.assumeIsolated { reportProgress(fraction) }
     }
 
-    func urlSession(_ session: URLSession,
-                    downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
-        guard let http = downloadTask.response as? HTTPURLResponse else {
-            finish(.failure(URLError(.badServerResponse)))
-            return
+    nonisolated func urlSession(_ session: URLSession,
+                                downloadTask: URLSessionDownloadTask,
+                                didFinishDownloadingTo location: URL) {
+        // `location` is removed once this method returns, so move it somewhere we
+        // own before hopping actors.
+        let response = downloadTask.response as? HTTPURLResponse
+        let moved: Result<URL, Error>
+        if let response, !(200...299).contains(response.statusCode) {
+            moved = .failure(NSError(domain: "HibikiEdge", code: response.statusCode,
+                                     userInfo: [NSLocalizedDescriptionKey: "Server returned HTTP \(response.statusCode)."]))
+        } else {
+            let stable = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            do {
+                try FileManager.default.moveItem(at: location, to: stable)
+                moved = .success(stable)
+            } catch {
+                moved = .failure(error)
+            }
         }
-        guard (200...299).contains(http.statusCode) else {
-            finish(.failure(NSError(domain: "HibikiEdge", code: http.statusCode,
-                                    userInfo: [NSLocalizedDescriptionKey: "Server returned HTTP \(http.statusCode)."])))
-            return
-        }
-        // `location` is removed once this method returns, so move it somewhere we own.
-        let stable = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        do {
-            try FileManager.default.moveItem(at: location, to: stable)
-            finish(.success(stable))
-        } catch {
-            finish(.failure(error))
-        }
+        MainActor.assumeIsolated { finish(moved) }
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        // Success is resumed in didFinishDownloadingTo; only surface real errors here.
-        if let error { finish(.failure(error)) }
-    }
-
-    private func finish(_ result: Result<URL, Error>) {
-        guard let continuation = activeContinuation else { return }
-        activeContinuation = nil
-        continuation.resume(with: result)
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // Success is resumed in didFinishDownloadingTo. If the task ended without
+        // delivering a file, resume here too so the run never hangs and Retry works.
+        // `finish` is a no-op once the continuation has already been resumed.
+        let result: Result<URL, Error> = .failure(error ?? URLError(.unknown))
+        MainActor.assumeIsolated { finish(result) }
     }
 }

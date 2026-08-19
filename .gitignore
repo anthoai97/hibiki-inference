@@ -24,3 +24,6 @@ build/
 xcuserdata/
 *.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 .DS_Store
+
+# LLVM profiling artifacts
+*.profraw

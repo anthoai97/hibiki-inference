@@ -28,6 +28,14 @@ let package = Package(
                 .product(name: "MLXRandom", package: "mlx-swift"),
             ]
         ),
+        .executableTarget(
+            name: "hibiki-translate",
+            dependencies: [
+                "HibikiCore",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXRandom", package: "mlx-swift"),
+            ]
+        ),
         .testTarget(
             name: "HibikiCoreTests",
             dependencies: ["HibikiCore"]

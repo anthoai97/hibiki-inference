@@ -1,27 +1,37 @@
 import AVFoundation
 import Foundation
+import HibikiCore
 
 /// Plays audio one stream at a time: a bundled source file (French) via
-/// `AVAudioPlayer`, or streamed English target PCM blocks via an
-/// `AVAudioEngine`. Everything flows through one instance and one `stop()`, so
-/// source and target audio can never play at the same time.
+/// `AVAudioPlayer`, or streamed English target PCM via an `AVAudioSourceNode`.
+///
+/// Target playback matches the Python `PlaybackStream`: decoded frames are
+/// written into a ring and the audio unit pulls a continuous 24 kHz stream.
+/// Discrete `AVAudioPlayerNode` buffers are not used — they click at every
+/// 80 ms seam after the graph resamples each buffer on its own.
 final class AudioPlayback: NSObject, ObservableObject {
     @Published private(set) var isPlaying = false
 
     private var filePlayer: AVAudioPlayer?
 
     private let engine = AVAudioEngine()
-    private let node = AVAudioPlayerNode()
     private let targetFormat: AVAudioFormat
+    private let ring = PCMRing(capacity: 24_000 * 8)
+    private var sourceNode: AVAudioSourceNode!
+    private let stateLock = NSLock()
     private var streaming = false
     private var streamEnded = false
-    private var pendingBuffers = 0
+    private var epoch = 0
 
     override init() {
-        // The codec emits 24 kHz mono float samples.
         targetFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32, sampleRate: 24_000, channels: 1, interleaved: false)!
         super.init()
+        let node = AVAudioSourceNode(format: targetFormat) { [weak self] _, _, frameCount, abl in
+            self?.render(frames: Int(frameCount), abl: abl)
+            return noErr
+        }
+        sourceNode = node
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: targetFormat)
     }
@@ -50,81 +60,125 @@ final class AudioPlayback: NSObject, ObservableObject {
 
     // MARK: Streamed target playback
 
-    /// Begin a fresh streamed-target playback, stopping anything else first.
+    /// Open the continuous target stream. The node outputs silence until the
+    /// first decoded samples arrive, the same way Python opens `OutputStream`
+    /// before the first `write`.
     func beginTargetStream() {
         stop()
         do {
             try activateSession()
-            if !engine.isRunning { try engine.start() }
-            node.play()
-            streaming = true
-            streamEnded = false
-            pendingBuffers = 0
-            isPlaying = true
         } catch {
+            return
+        }
+        stateLock.lock()
+        ring.reset()
+        streaming = true
+        streamEnded = false
+        stateLock.unlock()
+        do {
+            if !engine.isRunning { try engine.start() }
+            setPlaying(true)
+        } catch {
+            stateLock.lock()
             streaming = false
-            isPlaying = false
+            stateLock.unlock()
+            setPlaying(false)
         }
     }
 
-    /// Schedule one block of 24 kHz mono float samples for playback.
+    /// Write one block of 24 kHz mono float samples into the ring. Safe to
+    /// call from the inference thread; blocks if the listener is more than a
+    /// few seconds behind, like Python's bounded queue.
     func appendTarget(_ samples: [Float]) {
-        guard streaming, let buffer = makeBuffer(samples) else { return }
-        pendingBuffers += 1
-        node.scheduleBuffer(buffer) { [weak self] in
-            DispatchQueue.main.async { self?.bufferFinished() }
+        stateLock.lock()
+        let live = streaming
+        stateLock.unlock()
+        guard live, !samples.isEmpty else { return }
+        ring.write(samples)
+    }
+
+    /// Signal that no more blocks will arrive; playback ends when the ring drains.
+    func endTargetStream() {
+        stateLock.lock()
+        streamEnded = true
+        stateLock.unlock()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            while self.ring.available > 0 {
+                self.stateLock.lock()
+                let still = self.streaming
+                self.stateLock.unlock()
+                if !still { return }
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            self.setPlaying(false)
         }
     }
 
-    /// Signal that no more blocks will arrive; playback ends when the queue drains.
-    func endTargetStream() {
-        streamEnded = true
-        if pendingBuffers == 0 { isPlaying = false }
-    }
-
-    /// Replay a completed English translation from its accumulated samples.
+    /// Replay a completed English translation through the same continuous stream.
     func replayTarget(_ samples: [Float]) {
         beginTargetStream()
-        appendTarget(samples)
-        endTargetStream()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.appendTarget(samples)
+            self?.endTargetStream()
+        }
     }
 
     func stop() {
         filePlayer?.stop()
         filePlayer = nil
-        if streaming || node.isPlaying { node.stop() }
+        ring.abort()
+        stateLock.lock()
+        epoch += 1
         streaming = false
         streamEnded = false
-        pendingBuffers = 0
-        isPlaying = false
-    }
-
-    private func bufferFinished() {
-        pendingBuffers = max(0, pendingBuffers - 1)
-        if streamEnded, pendingBuffers == 0 { isPlaying = false }
-    }
-
-    private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer? {
-        guard !samples.isEmpty,
-              let buffer = AVAudioPCMBuffer(
-                  pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(samples.count))
-        else { return nil }
-        buffer.frameLength = AVAudioFrameCount(samples.count)
-        samples.withUnsafeBufferPointer { source in
-            buffer.floatChannelData![0].update(from: source.baseAddress!, count: samples.count)
+        stateLock.unlock()
+        if engine.isRunning { engine.stop() }
+        if Thread.isMainThread {
+            isPlaying = false
+        } else {
+            setPlaying(false)
         }
-        return buffer
+    }
+
+    private func render(frames: Int, abl: UnsafeMutablePointer<AudioBufferList>) {
+        let buffers = UnsafeMutableAudioBufferListPointer(abl)
+        guard let data = buffers[0].mData?.assumingMemoryBound(to: Float.self) else { return }
+
+        stateLock.lock()
+        let live = streaming
+        stateLock.unlock()
+        if !live {
+            data.update(repeating: 0, count: frames)
+            return
+        }
+        _ = ring.read(into: data, count: frames)
+    }
+
+    private func setPlaying(_ value: Bool) {
+        stateLock.lock()
+        let captured = epoch
+        stateLock.unlock()
+        DispatchQueue.main.async {
+            self.stateLock.lock()
+            let current = self.epoch
+            self.stateLock.unlock()
+            guard captured == current || !value else { return }
+            self.isPlaying = value
+        }
     }
 
     private func activateSession() throws {
-        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-        try AVAudioSession.sharedInstance().setActive(true)
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .default)
+        try session.setPreferredSampleRate(24_000)
+        try session.setActive(true)
+        #endif
     }
 }
 
 extension AudioPlayback: AVAudioPlayerDelegate {
-    // AVAudioPlayer calls its delegate on the thread that started playback (the
-    // main thread here), so updating the published flag directly is safe.
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false
     }

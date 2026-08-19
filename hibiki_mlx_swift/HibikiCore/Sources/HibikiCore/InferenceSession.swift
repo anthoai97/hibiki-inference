@@ -12,11 +12,52 @@ public enum SessionError: LocalizedError {
     }
 }
 
-/// What one generation step produced.
+/// Wall-clock time spent in each part of one generation step.
 ///
-/// Wall-clock step timing (the reference's `measure_timing`) is intentionally
-/// omitted — it is diagnostics, not part of the observable seam this session
-/// exposes.
+/// Same phases as the Python `StepTiming`: source encode, Hibiki generate,
+/// target decode, and text decode. `totalSeconds` is their sum. Only filled
+/// when the session was created with `measureTiming: true`; `eval` is called
+/// before each stopwatch so GPU work is included.
+public struct StepTiming: Equatable {
+    public let sourceEncodeSeconds: Double
+    public let generationSeconds: Double
+    public let targetDecodeSeconds: Double
+    public let textDecodeSeconds: Double
+
+    public var totalSeconds: Double {
+        sourceEncodeSeconds + generationSeconds + targetDecodeSeconds + textDecodeSeconds
+    }
+
+    public init(
+        sourceEncodeSeconds: Double,
+        generationSeconds: Double,
+        targetDecodeSeconds: Double,
+        textDecodeSeconds: Double
+    ) {
+        self.sourceEncodeSeconds = sourceEncodeSeconds
+        self.generationSeconds = generationSeconds
+        self.targetDecodeSeconds = targetDecodeSeconds
+        self.textDecodeSeconds = textDecodeSeconds
+    }
+
+    /// One monitor line in the Python `--metrics` layout, without the memory
+    /// suffix (MLX Swift does not expose the same counters).
+    public func formatted(textFrameIndex: Int, audioFrameIndex: Int?) -> String {
+        let audio = audioFrameIndex.map(String.init) ?? "-"
+        return "step=\(textFrameIndex) text_frame=\(textFrameIndex) audio_frame=\(audio) phases: "
+            + "encode=\(StepTiming.milliseconds(sourceEncodeSeconds)) "
+            + "generate=\(StepTiming.milliseconds(generationSeconds)) "
+            + "decode=\(StepTiming.milliseconds(targetDecodeSeconds)) "
+            + "text=\(StepTiming.milliseconds(textDecodeSeconds)) "
+            + "total=\(StepTiming.milliseconds(totalSeconds))"
+    }
+
+    public static func milliseconds(_ seconds: Double) -> String {
+        String(format: "%.1fms", seconds * 1000)
+    }
+}
+
+/// What one generation step produced.
 ///
 /// Text and audio leave a step on different positions of the model timeline: the
 /// text belongs to frame `t`; the audio that becomes complete during the same
@@ -29,6 +70,7 @@ public struct StepResult {
     public let audioFrameIndex: Int?
     public let pcm: [Float]?
     public let secondsPerFrame: Double
+    public let timing: StepTiming?
 
     /// The text's model time, in seconds.
     public var textTime: Double { Double(textFrameIndex) * secondsPerFrame }
@@ -59,12 +101,14 @@ public final class InferenceSession {
     private let decoderCache: [KVCache]
     private var pending: [Float] = []
     private var finished = false
+    private let measureTiming: Bool
 
     public init(
         model: LoadedModel,
         condition: String? = "very_good",
         textSampler: Sampler = Sampler(temperature: 0.8, topK: 25),
-        audioSampler: Sampler = Sampler(temperature: 0.8, topK: 250)
+        audioSampler: Sampler = Sampler(temperature: 0.8, topK: 250),
+        measureTiming: Bool = false
     ) throws {
         self.mimi = model.mimi
         self.frameSize = model.mimi.cfg.frameSize
@@ -83,6 +127,7 @@ public final class InferenceSession {
         }
         self.encoderCache = mimi.makeEncoderCache()
         self.decoderCache = mimi.makeDecoderCache()
+        self.measureTiming = measureTiming
         reset()
     }
 
@@ -146,31 +191,63 @@ public final class InferenceSession {
 
     /// Encode one source frame and run every generation step it yields.
     private func stepFrame(_ frame: [Float]) -> [StepResult] {
+        let encodeStarted = measureTiming ? DispatchTime.now() : nil
         let pcm = MLXArray(frame).reshaped([1, 1, frameSize])
         let codes = mimi.encodeStep(pcm, cache: encoderCache)
+        var sourceEncodeSeconds: Double?
+        if let encodeStarted {
+            eval(codes)
+            let steps = max(codes.dim(-1), 1)
+            sourceEncodeSeconds = InferenceSession.elapsed(encodeStarted) / Double(steps)
+        }
         var results: [StepResult] = []
         for index in 0 ..< codes.dim(-1) {
-            results.append(generate(sourceTokens: codes[0..., 0..., index]))
+            results.append(generate(sourceTokens: codes[0..., 0..., index], sourceEncodeSeconds: sourceEncodeSeconds))
         }
         return results
     }
 
-    private func generate(sourceTokens: MLXArray) -> StepResult {
+    private func generate(sourceTokens: MLXArray, sourceEncodeSeconds: Double?) -> StepResult {
         let textFrameIndex = generator.textFrameIndex
+        let generateStarted = sourceEncodeSeconds == nil ? nil : DispatchTime.now()
         let textToken = generator.step(sourceTokens: sourceTokens, condition: condition)
+        let audioTokens = generator.lastAudioTokens()
+        if let generateStarted {
+            if let audioTokens { eval(textToken, audioTokens) } else { eval(textToken) }
+        }
+        let generationSeconds = generateStarted.map(InferenceSession.elapsed)
 
         var pcm: [Float]?
         var audioFrameIndex: Int?
-        if let audioTokens = generator.lastAudioTokens() {
+        let decodeStarted = sourceEncodeSeconds == nil ? nil : DispatchTime.now()
+        if let audioTokens {
             audioFrameIndex = generator.audioFrameIndex
             let decoded = mimi.decodeStep(audioTokens.expandedDimensions(axis: -1), cache: decoderCache)
+            if decodeStarted != nil { eval(decoded) }
             pcm = decoded[0, 0].asArray(Float.self)
         }
+        let targetDecodeSeconds = decodeStarted.map(InferenceSession.elapsed)
 
+        let textStarted = sourceEncodeSeconds == nil ? nil : DispatchTime.now()
         let token = textToken.item(Int.self)
         let text = textDecoder.push(token)
+        let textDecodeSeconds = textStarted.map(InferenceSession.elapsed)
+
+        var timing: StepTiming?
+        if let sourceEncodeSeconds, let generationSeconds, let targetDecodeSeconds, let textDecodeSeconds {
+            timing = StepTiming(
+                sourceEncodeSeconds: sourceEncodeSeconds,
+                generationSeconds: generationSeconds,
+                targetDecodeSeconds: targetDecodeSeconds,
+                textDecodeSeconds: textDecodeSeconds)
+        }
         return StepResult(
             textFrameIndex: textFrameIndex, textToken: token, text: text,
-            audioFrameIndex: audioFrameIndex, pcm: pcm, secondsPerFrame: secondsPerFrame)
+            audioFrameIndex: audioFrameIndex, pcm: pcm, secondsPerFrame: secondsPerFrame,
+            timing: timing)
+    }
+
+    private static func elapsed(_ started: DispatchTime) -> Double {
+        Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000_000
     }
 }

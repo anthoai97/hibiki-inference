@@ -10,6 +10,12 @@ struct HibikiEdgeApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                #if os(macOS)
+                .frame(minWidth: 420, minHeight: 640)
+                #endif
         }
+        #if os(macOS)
+        .defaultSize(width: 480, height: 760)
+        #endif
     }
 }

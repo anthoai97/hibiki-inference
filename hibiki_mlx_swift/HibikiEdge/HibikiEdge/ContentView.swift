@@ -29,9 +29,17 @@ struct ContentView: View {
     }
 
     private var header: some View {
-        Text("Hibiki Edge")
-            .font(.largeTitle.bold())
-            .padding(.top, 24)
+        VStack(spacing: 8) {
+            Text("Hibiki Edge")
+                .font(.largeTitle.bold())
+                .padding(.top, 24)
+            if let caption = Translator.hostCaption {
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            }
+        }
     }
 
     @ViewBuilder

@@ -74,12 +74,13 @@ do {
     let model = try LoadedModel.load(directory: bundleDirectory)
     print(String(format: "loaded in %.1fs; translating %@ …", -started.timeIntervalSinceNow, inputURL.lastPathComponent))
 
-    let session = try InferenceSession(model: model)
+    let session = try InferenceSession(model: model, measureTiming: true)
     let pcm = try readWav(inputURL)
     session.warmup()
 
     let translateStarted = Date()
     var output: [Float] = []
+    var timed: [StepTiming] = []
     let chunk = model.mimi.cfg.frameSize * 25 // ~2 s of audio per push
     var offset = 0
     func consume(_ results: [StepResult]) {
@@ -88,6 +89,11 @@ do {
                 FileHandle.standardOutput.write(Data(text.utf8))
             }
             if let block = result.pcm { output.append(contentsOf: block) }
+            if let timing = result.timing {
+                timed.append(timing)
+                let line = "[hibiki] \(timing.formatted(textFrameIndex: result.textFrameIndex, audioFrameIndex: result.audioFrameIndex))\n"
+                FileHandle.standardError.write(Data(line.utf8))
+            }
         }
     }
     while offset < pcm.count {
@@ -99,9 +105,12 @@ do {
 
     let elapsed = -translateStarted.timeIntervalSinceNow
     let audioSeconds = Double(pcm.count) / model.mimi.cfg.sampleRate
+    let measured = timed.reduce(0.0) { $0 + $1.totalSeconds }
     print("\n\n--- transcript ---\n\(session.text)")
     print(String(format: "\ntranslated %.1fs of audio in %.1fs (%.2fx real time)",
                  audioSeconds, elapsed, audioSeconds / max(elapsed, 0.001)))
+    let summary = "[hibiki] metrics totals: steps=\(timed.count) measured_steps=\(StepTiming.milliseconds(measured))\n"
+    FileHandle.standardError.write(Data(summary.utf8))
 
     if let outputURL {
         try writeWav(output, to: outputURL, sampleRate: 24_000)

@@ -22,6 +22,7 @@ final class AudioPlayback: NSObject, ObservableObject {
     private var streaming = false
     private var streamEnded = false
     private var epoch = 0
+    private var gate = LivePlaybackGate()
 
     override init() {
         targetFormat = AVAudioFormat(
@@ -60,9 +61,10 @@ final class AudioPlayback: NSObject, ObservableObject {
 
     // MARK: Streamed target playback
 
-    /// Open the continuous target stream. The node outputs silence until the
-    /// first decoded samples arrive, the same way Python opens `OutputStream`
-    /// before the first `write`.
+    /// Open the target stream but do not start the audio unit until ~1 s of
+    /// English is buffered. That preroll absorbs a typical generate spike
+    /// (p95 ~160 ms) without a click. The engine stays off until then so
+    /// Core Audio is not spinning empty callbacks against Metal.
     func beginTargetStream() {
         stop()
         do {
@@ -72,18 +74,10 @@ final class AudioPlayback: NSObject, ObservableObject {
         }
         stateLock.lock()
         ring.reset()
+        gate = LivePlaybackGate()
         streaming = true
         streamEnded = false
         stateLock.unlock()
-        do {
-            if !engine.isRunning { try engine.start() }
-            setPlaying(true)
-        } catch {
-            stateLock.lock()
-            streaming = false
-            stateLock.unlock()
-            setPlaying(false)
-        }
     }
 
     /// Write one block of 24 kHz mono float samples into the ring. Safe to
@@ -94,7 +88,13 @@ final class AudioPlayback: NSObject, ObservableObject {
         let live = streaming
         stateLock.unlock()
         guard live, !samples.isEmpty else { return }
-        ring.write(samples)
+        var offset = 0
+        while offset < samples.count {
+            let end = min(offset + 4_800, samples.count)
+            ring.write(Array(samples[offset ..< end]))
+            startEngineIfReady()
+            offset = end
+        }
     }
 
     /// Signal that no more blocks will arrive; playback ends when the ring drains.
@@ -102,6 +102,7 @@ final class AudioPlayback: NSObject, ObservableObject {
         stateLock.lock()
         streamEnded = true
         stateLock.unlock()
+        startEngineIfReady()
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self else { return }
             while self.ring.available > 0 {
@@ -132,6 +133,7 @@ final class AudioPlayback: NSObject, ObservableObject {
         epoch += 1
         streaming = false
         streamEnded = false
+        gate = LivePlaybackGate()
         stateLock.unlock()
         if engine.isRunning { engine.stop() }
         if Thread.isMainThread {
@@ -147,12 +149,42 @@ final class AudioPlayback: NSObject, ObservableObject {
 
         stateLock.lock()
         let live = streaming
+        let ended = streamEnded
         stateLock.unlock()
         if !live {
             data.update(repeating: 0, count: frames)
             return
         }
+        let available = ring.available
+        stateLock.lock()
+        let consume = gate.shouldConsume(available: available, streamEnded: ended)
+        stateLock.unlock()
+        if !consume {
+            data.update(repeating: 0, count: frames)
+            return
+        }
         _ = ring.read(into: data, count: frames)
+    }
+
+    /// Start the audio unit once the preroll is in the ring, or immediately
+    /// when the stream has ended with a short tail.
+    private func startEngineIfReady() {
+        stateLock.lock()
+        let live = streaming
+        let ended = streamEnded
+        let need = gate.prerollSamples
+        stateLock.unlock()
+        guard live, !engine.isRunning else { return }
+        if ring.available < need && !ended { return }
+        do {
+            try engine.start()
+            setPlaying(true)
+        } catch {
+            stateLock.lock()
+            streaming = false
+            stateLock.unlock()
+            setPlaying(false)
+        }
     }
 
     private func setPlaying(_ value: Bool) {

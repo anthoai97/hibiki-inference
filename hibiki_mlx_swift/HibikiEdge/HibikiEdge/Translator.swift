@@ -20,6 +20,22 @@ final class Translator: ObservableObject {
     @Published private(set) var transcript = ""
     /// The accumulated English target samples, kept so the result can be replayed.
     @Published private(set) var targetSamples: [Float] = []
+    /// Completed generation steps (0 before the first result; equals the total at the end).
+    @Published private(set) var generationStep = 0
+    @Published private(set) var totalGenerationSteps: Int?
+    @Published private(set) var sourceLevels: [Float] = []
+    @Published private(set) var targetLevels: [Float] = []
+    @Published private(set) var textFrames: [(frame: Int, piece: String)] = []
+    /// Wall clock spent in the translating/finalizing loop, not model time.
+    @Published private(set) var computeTime: TimeInterval = 0
+    @Published private(set) var sourceSeconds: TimeInterval = 0
+
+    var modelTime: TimeInterval { Double(generationStep) * AudioLevel.secondsPerFrame }
+    var completeAudioFrames: Int { max(0, generationStep - 2) }
+    var stepsPerSecond: Double { computeTime > 0 ? Double(generationStep) / computeTime : 0 }
+    var realtimeFactor: Double {
+        computeTime > 0 && sourceSeconds > 0 ? sourceSeconds / computeTime : 0
+    }
 
     private var model: LoadedModel?
 
@@ -40,6 +56,13 @@ final class Translator: ObservableObject {
         status = .idle
         transcript = ""
         targetSamples = []
+        generationStep = 0
+        totalGenerationSteps = nil
+        sourceLevels = []
+        targetLevels = []
+        textFrames = []
+        computeTime = 0
+        sourceSeconds = 0
     }
 
     /// Translate `sourceURL` with the downloaded bundle, streaming English text
@@ -56,6 +79,13 @@ final class Translator: ObservableObject {
         }
         transcript = ""
         targetSamples = []
+        generationStep = 0
+        totalGenerationSteps = nil
+        sourceLevels = []
+        targetLevels = []
+        textFrames = []
+        computeTime = 0
+        sourceSeconds = 0
         status = .working("Loading model…")
         playback.stop()
 
@@ -65,10 +95,20 @@ final class Translator: ObservableObject {
                 let model = try self.loadModel(bundleDirectory)
                 let pcm = try Translator.readPCM(url: sourceURL)
                 let session = try InferenceSession(model: model, measureTiming: true)
+                let frameSize = model.mimi.cfg.frameSize
+                let sourceSeconds = Double(pcm.count) / model.mimi.cfg.sampleRate
+                let sourceFrames = (pcm.count + frameSize - 1) / frameSize
+                let totalSteps = sourceFrames + InferenceSession.silenceTailFrames
+                let sourceLevels = AudioLevel.levels(from: pcm, frameSize: frameSize)
 
                 // Pay the cold Metal-compile cost before streaming, so the first
                 // real frame is not slow.
-                DispatchQueue.main.async { self.status = .working("Warming up…") }
+                DispatchQueue.main.async {
+                    self.sourceLevels = sourceLevels
+                    self.sourceSeconds = sourceSeconds
+                    self.totalGenerationSteps = totalSteps
+                    self.status = .working("Warming up…")
+                }
                 session.warmup()
 
                 let started = DispatchGroup()
@@ -84,17 +124,18 @@ final class Translator: ObservableObject {
                 // One source frame at a time, matching the Python runner:
                 // each completed target frame is written into the playback
                 // ring as soon as it exists.
-                let chunk = model.mimi.cfg.frameSize
+                let translateStarted = DispatchTime.now()
                 var offset = 0
                 var timed: [StepTiming] = []
                 while offset < pcm.count {
-                    let end = min(offset + chunk, pcm.count)
+                    let end = min(offset + frameSize, pcm.count)
                     let results = try session.pushPCM(Array(pcm[offset ..< end]))
                     offset = end
-                    self.emit(results, playback: playback, timed: &timed)
+                    self.emit(results, playback: playback, timed: &timed, computeTime: Translator.elapsed(translateStarted))
                 }
-                self.emit(session.finish(), playback: playback, timed: &timed)
-                Translator.logTotals(steps: timed, sourceSeconds: Double(pcm.count) / model.mimi.cfg.sampleRate)
+                DispatchQueue.main.async { self.status = .working("Finalizing…") }
+                self.emit(session.finish(), playback: playback, timed: &timed, computeTime: Translator.elapsed(translateStarted))
+                Translator.logTotals(steps: timed, sourceSeconds: sourceSeconds)
 
                 DispatchQueue.main.async {
                     playback.endTargetStream()
@@ -119,13 +160,28 @@ final class Translator: ObservableObject {
     }
 
     /// Write PCM into the playback ring from this thread (the Python
-    /// `PlaybackStream.play` call) and hop text to the main queue.
-    private func emit(_ results: [StepResult], playback: AudioPlayback, timed: inout [StepTiming]) {
+    /// `PlaybackStream.play` call) and hop one snapshot to the main queue.
+    private func emit(
+        _ results: [StepResult],
+        playback: AudioPlayback,
+        timed: inout [StepTiming],
+        computeTime: TimeInterval
+    ) {
         var text = ""
         var pcm: [Float] = []
+        var newTextFrames: [(frame: Int, piece: String)] = []
+        var newTargetLevels: [Float] = []
+        var lastStep: Int?
         for result in results {
-            if let fragment = result.text { text += fragment }
-            if let samples = result.pcm { pcm.append(contentsOf: samples) }
+            lastStep = result.textFrameIndex
+            if let fragment = result.text, !fragment.isEmpty {
+                text += fragment
+                newTextFrames.append((frame: result.textFrameIndex, piece: fragment))
+            }
+            if let samples = result.pcm {
+                pcm.append(contentsOf: samples)
+                newTargetLevels.append(AudioLevel.level(from: samples))
+            }
             if let timing = result.timing {
                 timed.append(timing)
                 // Printing every 80 ms frame from the inference thread overloads
@@ -139,11 +195,18 @@ final class Translator: ObservableObject {
             }
         }
         if !pcm.isEmpty { playback.appendTarget(pcm) }
-        if text.isEmpty && pcm.isEmpty { return }
         DispatchQueue.main.async {
+            if let lastStep { self.generationStep = lastStep + 1 }
+            self.computeTime = computeTime
             if !text.isEmpty { self.transcript += text }
             if !pcm.isEmpty { self.targetSamples.append(contentsOf: pcm) }
+            if !newTextFrames.isEmpty { self.textFrames.append(contentsOf: newTextFrames) }
+            if !newTargetLevels.isEmpty { self.targetLevels.append(contentsOf: newTargetLevels) }
         }
+    }
+
+    private static func elapsed(_ started: DispatchTime) -> TimeInterval {
+        Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000_000
     }
 
     /// Same summary line the Python runner prints after `--metrics`.

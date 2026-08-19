@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:hibiki-inference}/hibiki_mlx_swift/HibikiCore",
+            "name": "Debug hibiki-translate (hibiki_mlx_swift/HibikiCore)",
+            "target": "hibiki-translate",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug hibiki-translate (hibiki_mlx_swift/HibikiCore)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:hibiki-inference}/hibiki_mlx_swift/HibikiCore",
+            "name": "Release hibiki-translate (hibiki_mlx_swift/HibikiCore)",
+            "target": "hibiki-translate",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release hibiki-translate (hibiki_mlx_swift/HibikiCore)"
+        }
+    ]
+}

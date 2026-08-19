@@ -10,7 +10,17 @@ import HibikiCore
 /// Discrete `AVAudioPlayerNode` buffers are not used — they click at every
 /// 80 ms seam after the graph resamples each buffer on its own.
 final class AudioPlayback: NSObject, ObservableObject {
-    @Published private(set) var isPlaying = false
+    enum Stream: Equatable {
+        case idle
+        case source
+        case target
+    }
+
+    /// Which stream is audible. `idle` after a stop or natural end; the next
+    /// play always starts from the beginning.
+    @Published private(set) var stream: Stream = .idle
+
+    var isPlaying: Bool { stream != .idle }
 
     private var filePlayer: AVAudioPlayer?
 
@@ -50,11 +60,11 @@ final class AudioPlayback: NSObject, ObservableObject {
             player.delegate = self
             filePlayer = player
             player.play()
-            isPlaying = true
+            publish(.source)
             return true
         } catch {
             filePlayer = nil
-            isPlaying = false
+            publish(.idle)
             return false
         }
     }
@@ -78,6 +88,7 @@ final class AudioPlayback: NSObject, ObservableObject {
         streaming = true
         streamEnded = false
         stateLock.unlock()
+        publish(.target)
     }
 
     /// Write one block of 24 kHz mono float samples into the ring. Safe to
@@ -112,7 +123,7 @@ final class AudioPlayback: NSObject, ObservableObject {
                 if !still { return }
                 Thread.sleep(forTimeInterval: 0.05)
             }
-            self.setPlaying(false)
+            self.publish(.idle)
         }
     }
 
@@ -136,11 +147,7 @@ final class AudioPlayback: NSObject, ObservableObject {
         gate = LivePlaybackGate()
         stateLock.unlock()
         if engine.isRunning { engine.stop() }
-        if Thread.isMainThread {
-            isPlaying = false
-        } else {
-            setPlaying(false)
-        }
+        publish(.idle)
     }
 
     private func render(frames: Int, abl: UnsafeMutablePointer<AudioBufferList>) {
@@ -178,25 +185,32 @@ final class AudioPlayback: NSObject, ObservableObject {
         if ring.available < need && !ended { return }
         do {
             try engine.start()
-            setPlaying(true)
+            publish(.target)
         } catch {
             stateLock.lock()
             streaming = false
             stateLock.unlock()
-            setPlaying(false)
+            publish(.idle)
         }
     }
 
-    private func setPlaying(_ value: Bool) {
+    /// Publish `stream` on the main thread, ignoring stale callbacks from a
+    /// previous `stop()` (the epoch bumps there).
+    private func publish(_ value: Stream) {
         stateLock.lock()
         let captured = epoch
         stateLock.unlock()
-        DispatchQueue.main.async {
+        let apply = {
             self.stateLock.lock()
             let current = self.epoch
             self.stateLock.unlock()
-            guard captured == current || !value else { return }
-            self.isPlaying = value
+            guard captured == current else { return }
+            self.stream = value
+        }
+        if Thread.isMainThread {
+            apply()
+        } else {
+            DispatchQueue.main.async(execute: apply)
         }
     }
 
@@ -212,6 +226,6 @@ final class AudioPlayback: NSObject, ObservableObject {
 
 extension AudioPlayback: AVAudioPlayerDelegate {
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        isPlaying = false
+        publish(.idle)
     }
 }
